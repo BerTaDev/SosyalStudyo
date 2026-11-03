@@ -1,4 +1,4 @@
-const VERSION = 8
+const VERSION = 10
 const STORAGE_LIMIT = 1073741824
 const STORAGE_MARGIN = 16 * 1024 * 1024
 const LEAD_MS = 10 * 60 * 1000
@@ -995,6 +995,7 @@ const PANEL_ICONS = {
   "music": '<path d="M9 18V5l12-2v13"/> <circle cx="6" cy="18" r="3"/> <circle cx="18" cy="16" r="3"/>',
   "zap": '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
   "circle-pause": '<circle cx="12" cy="12" r="10"/> <line x1="10" x2="10" y1="15" y2="9"/> <line x1="14" x2="14" y1="15" y2="9"/>',
+  "clock": '<circle cx="12" cy="12" r="10"/> <polyline points="12 6 12 12 16 14"/>',
   "layers": '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
   "chart-column": '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
   "layout-dashboard": '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
@@ -1461,6 +1462,19 @@ html.fx .sg.on{background:linear-gradient(135deg,rgba(var(--accent-rgb),.24),rgb
 .arow.off{opacity:.62}
 .accn{font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:6px;background:var(--bg4);color:var(--soft)}
 .sthead{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:0 2px}
+.fr{display:inline-flex;align-items:center;gap:4px;flex:none;font-size:10.5px;font-weight:650;letter-spacing:0;text-transform:none;line-height:1.6;padding:0 7px;border-radius:999px;border:1px solid var(--line2);color:var(--muted);background:var(--bg3);white-space:nowrap;cursor:help}
+.fr .ic{opacity:.85}
+.fr.live{color:var(--ok);border-color:var(--okln);background:var(--okbg)}
+.fr.live i{width:6px;height:6px;border-radius:50%;background:currentColor;animation:ping 2.4s ease-out infinite}
+.fr.old{color:var(--warn);border-color:var(--warnln);background:var(--warnbg)}
+.sh .fr,.ch .fr,.hh .fr{margin-left:auto}
+.ch .fr~.tag,.hh .fr~.tag{margin-left:6px}
+.pcard .ch .fr{margin-left:8px}
+.frleg{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:-6px 2px 14px;font-size:11.5px;color:var(--faint)}
+.frleg>span:not(.fr){margin-right:8px}
+.frline{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:0 2px}
+.kf{display:inline-flex;vertical-align:-1px;color:var(--faint);cursor:help}
+html.still .fr.live i{animation:none}
 .stnote{margin:0 2px}
 .frz{display:flex;gap:6px;align-items:center;margin-top:8px;padding:7px 10px;border-radius:10px;background:var(--warnbg);border:1px solid var(--warnln);color:var(--warn);font-size:12px;line-height:1.35}
 .frz>.ic{flex:none}
@@ -1850,7 +1864,7 @@ function panelApp(IC) {
     const ahead = loc.filter(x => x.t > now())
     if (!n) {
       return `<section class="hero idle o1 rise" style="--i:1">
-        <div class="hh">${ic("calendar-clock", 15)}Sıradaki paylaşım</div>
+        <div class="hh">${ic("calendar-clock", 15)}Sıradaki paylaşım${fr("live")}</div>
         <div class="hempty"><span class="hei">${ic("cloud", 28)}</span><b>Bulutta bekleyen paylaşım yok</b><span>Stüdyoda bir Reels planlandığında buluta yüklenir ve geri sayım burada başlar.</span></div>
         ${ahead.length ? `<div class="hnote warn">${ic("monitor", 15)}<span>Bilgisayardan paylaşılacak ${ahead.length} gönderi var · ilki <b>${esc(when(ahead[0].t))}</b></span></div>` : ""}
       </section>`
@@ -1858,7 +1872,7 @@ function panelApp(IC) {
     const at = ts(n.at)
     const before = ahead.find(x => x.t < at)
     return `<section class="hero o1 st-${esc(n.status)} rise" style="--i:1">
-      <div class="hh">${ic("calendar-clock", 15)}Sıradaki paylaşım ${tag(n.status)}</div>
+      <div class="hh">${ic("calendar-clock", 15)}Sıradaki paylaşım ${fr("live")}${tag(n.status)}</div>
       <div class="hin" data-open="${esc(n.pid)}" role="button" tabindex="0">
         ${th(n, "hth")}
         <div class="hb">
@@ -1887,7 +1901,7 @@ function panelApp(IC) {
     const used = s.used || 0
     const p = used / lim
     return `<section class="card o3 rise" style="--i:3">
-      <div class="ch">${ic("hard-drive", 15)}Depolama <span class="tag ${lvl(p)}">%${esc(nf1.format(p * 100))}</span></div>
+      <div class="ch">${ic("hard-drive", 15)}Depolama ${fr("live")}<span class="tag ${lvl(p)}">%${esc(nf1.format(p * 100))}</span></div>
       <div class="big"><b>${esc(bytes(used))}</b><span>/ ${esc(bytes(lim))}</span></div>
       <div class="bar lg"><i class="${lvl(p)}" style="width:${Math.min(100, used ? Math.max(p * 100, 1.2) : 0)}%"></i></div>
       <div class="sub"><span>${ic("check", 13)}<b>${esc(bytes(Math.max(0, lim - used)))}</b> boş yer</span><span>${ic("film", 13)}<b>${s.videos || 0}</b> video bulutta</span></div>
@@ -1912,7 +1926,7 @@ function panelApp(IC) {
       }).join("")
     }
     return `<section class="card o4 rise" style="--i:4">
-      <div class="ch">${ic("activity", 15)}Bugünkü kullanım${stamp ? ` <span class="chs">· ${esc(fHM.format(new Date(stamp)))} itibarıyla</span>` : ""}</div>
+      <div class="ch">${ic("activity", 15)}Bugünkü kullanım${stamp ? ` <span class="chs">· ${esc(fHM.format(new Date(stamp)))} itibarıyla</span>` : ""}${fr("p15")}</div>
       ${body}
       <div class="note">${ic("info", 13)}<span>Ücretsiz plan sınırları. Aşılırsa o gün istekler durur, ücret çıkmaz. Sayaçlar her gün ${esc(fHM.format(reset))} itibarıyla sıfırlanır.</span></div>
     </section>`
@@ -1936,7 +1950,7 @@ function panelApp(IC) {
   }
   function queue(q, ups) {
     return `<section id="kuyruk" class="o5 rise" style="--i:5">
-      <h3 class="sh">${ic("cloud", 15)}Bulut kuyruğu <span class="n">${q.length}</span></h3>
+      <h3 class="sh">${ic("cloud", 15)}Bulut kuyruğu <span class="n">${q.length}</span>${fr("live")}</h3>
       ${q.length ? q.map(j => jobCard(j, ups)).join("") : `<div class="empty">${ic("inbox", 24)}<div><b>Kuyruk boş</b><span>Planlanan Reels videoları buluta yüklendikçe burada görünür.</span></div></div>`}
     </section>`
   }
@@ -1954,7 +1968,7 @@ function panelApp(IC) {
       }).join("")
       body = `<div class="warnbox">${ic("monitor", 19)}<div><b>Bu saatlerde bilgisayar açık olmalı</b><span>Bu paylaşımlar bulutta değil. Planlanan saatte bilgisayar açık ve Sosyal Stüdyo çalışıyor olmalı.</span>${!online ? `<span class="off">Stüdyo şu an kapalı görünüyor · son görülme ${agoSpan(at)}</span>` : ""}</div></div><div class="card">${rows}</div>`
     }
-    return `<section id="yerel" class="o6 rise" style="--i:6"><h3 class="sh">${ic("monitor", 15)}Bilgisayarda kalacak <span class="n">${loc.length}</span></h3>${body}</section>`
+    return `<section id="yerel" class="o6 rise" style="--i:6"><h3 class="sh">${ic("monitor", 15)}Bilgisayarda kalacak <span class="n">${loc.length}</span>${fr("p15")}</h3>${body}</section>`
   }
   function recentSec(rec) {
     const rows = rec.map(r => {
@@ -1962,7 +1976,7 @@ function panelApp(IC) {
       const pt = ts(r.published_at) || ts(r.at)
       return `<div class="rrow" data-open="${esc(r.pid)}" role="button" tabindex="0">${th(r, "th xs")}<div class="grow"><b>${esc(title(r))}</b><span>${esc(when(pt))} · ${r.live ? `<span class="live">yeni</span>` : agoSpan(pt)}</span></div>${link ? `<a class="btn sm ig" href="${esc(link)}" target="_blank" rel="noopener noreferrer">${ic("instagram", 14)}Aç</a>` : ""}</div>`
     }).join("")
-    return `<section id="yayinda" class="o7 rise" style="--i:7"><h3 class="sh">${ic("instagram", 15)}Son yayınlananlar <span class="n">${rec.length}</span></h3>
+    return `<section id="yayinda" class="o7 rise" style="--i:7"><h3 class="sh">${ic("instagram", 15)}Son yayınlananlar <span class="n">${rec.length}</span>${fr("live")}</h3>
       ${rec.length ? `<div class="card">${rows}</div>` : `<div class="empty">${ic("instagram", 24)}<div><b>Henüz yok</b><span>Bulutun paylaştığı gönderiler burada Instagram bağlantılarıyla görünür.</span></div></div>`}
     </section>`
   }
@@ -1973,7 +1987,7 @@ function panelApp(IC) {
       const t = ts(e.at)
       return `<li><span class="evi ${c}">${ic(i, 14)}</span><div class="grow"><p>${esc(e.text)}</p>${e.title ? `<b>${esc(e.title)}</b>` : ""}<span class="tm">${agoSpan(t)} · ${esc(when(t))}</span></div></li>`
     }).join("")
-    return `<section id="olaylar" class="o8 rise" style="--i:8"><h3 class="sh">${ic("history", 15)}Olaylar</h3>
+    return `<section id="olaylar" class="o8 rise" style="--i:8"><h3 class="sh">${ic("history", 15)}Olaylar${fr("live")}</h3>
       ${ev.length ? `<div class="card"><ol class="tl">${rows}</ol>${ev.length > 7 ? `<button class="more" data-act="all">${S.all ? "Daha az göster" : `Tümünü göster (${ev.length})`}</button>` : ""}</div>` : `<div class="empty">${ic("history", 24)}<div><b>Henüz olay yok</b><span>Yükleme, yayın ve hata kayıtları burada akar.</span></div></div>`}
     </section>`
   }
@@ -2000,7 +2014,7 @@ function panelApp(IC) {
     follow: ["users", "info"], dm: ["message-circle", "info"], comment: ["message-circle", "info"], schedule: ["calendar-clock", "info"],
   }
   const SP = {
-    ig: ["instagram", "Instagram", [["followers", "Takipçi", "ig_f"], ["views", "Toplam izlenme", "ig_v"]],
+    ig: ["instagram", "Instagram", [["followers", "Takipçi", "ig_f"], ["views", "Toplam izlenme", "ig_v", "saatte bir"]],
       [["likes", "beğeni", "heart"], ["comments", "yorum", "message-circle"], ["reach7", "erişim (7 gün)", "users"], ["media", "gönderi", "images"]]],
     yt: ["youtube", "YouTube", [["subscribers", "Abone", "yt_s"], ["views", "Toplam izlenme", "yt_v"]],
       [["likes", "beğeni", "heart"], ["comments", "yorum", "message-circle"], ["videos", "video", "film"]]],
@@ -2009,6 +2023,16 @@ function panelApp(IC) {
   const nfc = new Intl.NumberFormat("tr-TR", { notation: "compact", maximumFractionDigits: 1 })
   const fmtN = v => (typeof v === "number" ? (Math.abs(v) >= 1e5 ? nfc.format(v) : nf.format(v)) : "—")
   const snapOf = d => (d && d.snapshot) || {}
+  const FR = {
+    live: ["Anlık", "Buluttan gelir; panel her dakika kendiliğinden yenilenir"],
+    p15: ["15 dk", "Stüdyodan gelir; stüdyo açıkken 15 dakikada bir güncellenir"],
+    p60: ["Saatlik", "Stüdyodan gelir; stüdyo açıkken saatte bir güncellenir"],
+    p6h: ["6 saatte bir", "Stüdyodan gelir; stüdyo açıkken 6 saatte bir güncellenir"],
+  }
+  const frTag = k => `<span class="fr ${k}" title="${FR[k][1]}">${k === "live" ? "<i></i>" : ic("clock", 11)}${FR[k][0]}</span>`
+  const fr = k => (k !== "live" && S.d && !snapInfo(S.d).online
+    ? `<span class="fr old" title="Stüdyo kapalı; son alınan değerler gösteriliyor">${ic("monitor-off", 11)}Güncellenmiyor</span>` : frTag(k))
+  const frLegend = () => `<div class="frleg">${frTag("live")}<span>buluttan, panel her dakika yenilenir</span>${frTag("p15")}<span>stüdyodan, stüdyo açıkken gelir</span></div>`
   const ptag = (map, k) => {
     const [l, c, i] = map[k] || [k || "—", "mute", "info"]
     return `<span class="tag ${c}">${ic(i, 12)}${esc(l)}</span>`
@@ -2045,7 +2069,8 @@ function panelApp(IC) {
     }
     const open = new Set((d.jobs || []).map(j => j.pid))
     let i = 2
-    const head = `<div class="card calsum rise" style="--i:1">
+    const head = `<div class="frline rise" style="--i:1">${fr("p15")}<span>Takvim stüdyodan gelir · son veri ${agoSpan(snapInfo(d).at)}</span></div>
+      <div class="card calsum rise" style="--i:1">
         <div><b>${plan.length}</b><span>planlı paylaşım</span></div>
         <div><b>${days.size}</b><span>gün</span></div>
         <div class="${pc.length ? "warn" : "ok"}"><b>${pc.length}</b><span>bilgisayar gerektiren</span></div>
@@ -2070,7 +2095,7 @@ function panelApp(IC) {
       : `<div class="big"><b>%${esc(nf.format(c.percent))}</b><span>5 saatlik limitin kullanıldı</span></div>
         <div class="bar lg"><i class="${lvl(p)}" style="width:${Math.min(100, c.percent ? Math.max(p * 100, 1.5) : 0)}%"></i></div>
         <div class="sub">${Number.isNaN(reset) ? "" : past ? `<span>${ic("rotate-ccw", 13)}Limit sıfırlandı · yeni rapor bekleniyor</span>` : `<span>${ic("rotate-ccw", 13)}Sıfırlanma <b>${esc(fHM.format(new Date(reset)))}</b> ${cdSpan(reset)}</span>`}${c.updated ? `<span>${ic("history", 13)}${agoSpan(ts(c.updated))}</span>` : ""}</div>`
-    return `<section class="card o2 rise" style="--i:4"><div class="ch">${ic("gauge", 15)}Ajan kullanımı${has ? ` <span class="tag ${lvl(p)}">%${esc(nf.format(c.percent))}</span>` : ""}</div>${body}</section>`
+    return `<section class="card o2 rise" style="--i:4"><div class="ch">${ic("gauge", 15)}Ajan kullanımı${fr("p15")}${has ? ` <span class="tag ${lvl(p)}">%${esc(nf.format(c.percent))}</span>` : ""}</div>${body}</section>`
   }
   function agentsCard(sn) {
     const list = (sn.agents || []).slice().sort((a, b) => (a.live === "off") - (b.live === "off"))
@@ -2080,14 +2105,14 @@ function panelApp(IC) {
       return `<div class="arow${a.live === "off" ? " off" : ""}"><span class="li ${(AG[a.live] || [])[1] || ""}">${ic("bot", 17)}</span>
         <div class="grow"><b>${esc(a.name)}${a.account && a.account !== "main" ? `<em class="accn">${esc(String(a.account).toUpperCase())}</em>` : ""}</b><span>${sub}</span></div>${ptag(AG, a.live)}</div>`
     }).join("")
-    return `<section class="card o4 rise" style="--i:5"><div class="ch">${ic("bot", 15)}Ajanlar <span class="tag ${on ? "ok" : "mute"}">${on} açık</span></div>
+    return `<section class="card o4 rise" style="--i:5"><div class="ch">${ic("bot", 15)}Ajanlar ${fr("p15")}<span class="tag ${on ? "ok" : "mute"}">${on} açık</span></div>
       ${list.length ? rows : `<div class="none">${ic("bot", 24)}<b>Ajan yok</b><span>Stüdyoya bir ajan bağlandığında burada görünür.</span></div>`}</section>`
   }
   function autoSec(sn) {
     const list = sn.auto || []
     if (!list.length) return ""
     const n = v => nf.format(v || 0)
-    return `<section class="o5 rise" style="--i:5"><h3 class="sh">${ic("zap", 15)}Otopilot <span class="n">${list.length}</span></h3><div class="card">${list.map(a => `<div class="lrow">
+    return `<section class="o5 rise" style="--i:5"><h3 class="sh">${ic("zap", 15)}Otopilot <span class="n">${list.length}</span>${fr("p15")}</h3><div class="card">${list.map(a => `<div class="lrow">
         <span class="li ${(CP[a.status] || [])[1] || ""}">${ic("zap", 17)}</span>
         <div class="grow"><b>${esc(a.name || "Kampanya")}</b><span class="lt">${ptag(CP, a.status)}<span>${n(a.videos)} video</span>·<span>${n(a.scheduled)} planlı</span>·<span>${n(a.published)} yayında</span>${a.producing ? `·<span>${n(a.producing)} üretimde</span>` : ""}</span>
           ${a.stage ? `<i>${esc(a.stage)}</i>` : ""}${a.next && a.next.at ? `<i>${ic("calendar-clock", 12)}Sıradaki: ${esc(a.next.title)} · ${esc(when(ts(a.next.at)))}</i>` : ""}</div>
@@ -2109,7 +2134,7 @@ function panelApp(IC) {
       </div>`).join("")
     const list = items.length ? `<div class="card">${rows}</div>` : empty("circle-check", "Üretimde video yok", "Yeni bir fikir üretime alındığında ajanların ilerlemesi burada görünür.", "ok")
     return `<div class="cols"><div class="col">${tl}
-        <section class="o3 rise" style="--i:3"><h3 class="sh">${ic("wand-sparkles", 15)}Üretim hattı <span class="n">${items.length}</span></h3>${list}</section>
+        <section class="o3 rise" style="--i:3"><h3 class="sh">${ic("wand-sparkles", 15)}Üretim hattı <span class="n">${items.length}</span>${fr("p15")}</h3>${list}</section>
         ${autoSec(sn)}</div>
       <div class="col">${limitCard(sn)}${agentsCard(sn)}</div></div>`
   }
@@ -2147,8 +2172,8 @@ function panelApp(IC) {
     const [pi, pn, heads, subs] = SP[k]
     const who = s.username ? "@" + s.username : s.title || ""
     return `<section class="card pcard ${k} rise" style="--i:${i}">
-      <div class="ch">${ic(pi, 15)}${pn}${who ? `<span class="chs">${esc(who)}</span>` : ""}</div>
-      <div class="kpis">${heads.map(([f, l, h]) => `<div class="kpi"><span class="kl">${l}</span><b>${esc(fmtN(s[f]))}</b>${delta(hist, h, s[f])}</div>`).join("")}</div>
+      <div class="ch">${ic(pi, 15)}${pn}${who ? `<span class="chs">${esc(who)}</span>` : ""}${fr(k === "ig" ? (s.cloud ? "live" : "p15") : k === "yt" ? "p15" : "p6h")}</div>
+      <div class="kpis">${heads.map(([f, l, h, note]) => `<div class="kpi"><span class="kl">${l}${note ? ` <i class="kf" title="Stüdyo açıkken ${note} güncellenir">${ic("clock", 11)}</i>` : ""}</span><b>${esc(fmtN(s[f]))}</b>${delta(hist, h, s[f])}</div>`).join("")}</div>
       ${spark(hist, heads[0][2], heads[0][1])}
       ${frozen ? `<div class="frz">${ic("monitor-off", 13)}<span>Stüdyo kapalı, bu değerler güncellenmiyor${s.at ? ` · ${agoSpan(ts(s.at))} alındı` : ""}</span></div>` : ""}
       <div class="sub">${subs.filter(([f]) => typeof s[f] === "number").map(([f, l, si]) => `<span>${ic(si, 13)}<b>${esc(fmtN(s[f]))}</b>${l}</span>`).join("")}${s.at ? `<span>${ic(s.cloud ? "cloud" : "history", 13)}${s.cloud ? "Buluttan · " : ""}${agoSpan(ts(s.at))}</span>` : ""}</div>
@@ -2191,16 +2216,16 @@ function panelApp(IC) {
         <div class="nums">${num(r.v, "eye", "İzlenme")}${num(r.l, "heart", "Beğeni")}${num(r.c, "message-circle", "Yorum")}</div>
         ${link ? `<a class="ib sm" href="${esc(link)}" target="_blank" rel="noopener noreferrer" aria-label="${pn}'da aç">${ic("external-link", 15)}</a>` : ""}</div>`
     }).join("")
-    return `<section class="rise" style="--i:6"><h3 class="sh">${ic("trending-up", 15)}Son paylaşımların performansı</h3><div class="card">${rows}</div></section>`
+    return `<section class="rise" style="--i:6"><h3 class="sh">${ic("trending-up", 15)}Son paylaşımların performansı${fr("p60")}</h3><div class="card">${rows}</div></section>`
   }
   function statsView(d) {
     const st = snapOf(d).stats
     const { ig, hist } = igMerge(st, d.igstat)
-    if (!st && !ig) return empty("chart-column", "İstatistik henüz gelmedi", "Uzaktan takip açıkken stüdyo hesap istatistiklerini saatte bir toplar ve buraya gönderir.")
+    if (!st && !ig) return empty("chart-column", "İstatistik henüz gelmedi", "Uzaktan takip açıkken stüdyo hesap istatistiklerini 15 dakikada bir toplar ve buraya gönderir.")
     const sAt = st ? ts(st.at) : NaN
     const stale = Number.isNaN(sAt) || now() - sAt > 70 * 60000
     const cards = [["ig", ig], ["yt", st && st.yt], ["tt", st && st.tt]].map(([k, s], i) => platCard(k, s, hist, 2 + i, k !== "ig" && stale)).join("")
-    return `<div class="sthead rise" style="--i:1">${ic("history", 14)}<span>${st ? `Stüdyodan son veri ${agoSpan(sAt)} · stüdyo açıkken saatte bir yenilenir` : "Stüdyodan henüz istatistik gelmedi"}</span></div>
+    return `<div class="sthead rise" style="--i:1">${ic("history", 14)}<span>${st ? `Stüdyodan son veri ${agoSpan(sAt)} · stüdyo açıkken 15 dakikada bir yenilenir` : "Stüdyodan henüz istatistik gelmedi"}</span></div>
       <div class="note stnote rise" style="--i:1">${ic("info", 13)}<span><b>Instagram</b> takipçi ve gönderi sayısını bulut, stüdyo kapalıyken de günceller. <b>YouTube</b> ve <b>TikTok</b> istatistikleri yalnızca stüdyo açıkken güncellenir; kapalıyken son alınan değerler görünür.</span></div>
       ${cards ? `<div class="pgrid">${cards}</div>` : empty("users", "Bağlı hesap yok", "Stüdyoda Instagram, YouTube ya da TikTok bağlandığında istatistikler burada görünür.")}
       ${recentPosts((st && st.recent) || [])}`
@@ -2213,7 +2238,7 @@ function panelApp(IC) {
       const t = ts(e.at)
       return `<li><span class="evi ${c}">${ic(i, 14)}</span><div class="grow"><p>${esc(e.title)}</p>${e.text ? `<b>${esc(e.text)}</b>` : ""}<span class="tm">${agoSpan(t)} · ${esc(when(t))}</span></div></li>`
     }).join("")
-    return `<section class="o7 rise" style="--i:9"><h3 class="sh">${ic("bell", 15)}Stüdyo bildirimleri${n.unread ? ` <span class="n" title="Okunmamış">${n.unread}</span>` : ""}</h3><div class="card"><ol class="tl">${rows}</ol></div></section>`
+    return `<section class="o7 rise" style="--i:9"><h3 class="sh">${ic("bell", 15)}Stüdyo bildirimleri${n.unread ? ` <span class="n" title="Okunmamış">${n.unread}</span>` : ""}${fr("p15")}</h3><div class="card"><ol class="tl">${rows}</ol></div></section>`
   }
   function sparkHover(e) {
     const s = e.target.closest && e.target.closest(".spk[data-spk]")
@@ -2248,7 +2273,7 @@ function panelApp(IC) {
       <div class="col">${hero(d, loc)}${tiles(q, rec, loc)}${queue(q, ups)}${localSec(d, loc)}</div>
       <div class="col">${storageCard(d)}${usageCard(d)}${notesSec(d)}${recentSec(rec)}${eventsSec(d.events || [])}</div>
     </div>`
-    root.innerHTML = header() + `<main class="wrap">${strip(d)}${banners(d, q)}${tabBar(d)}${view}
+    root.innerHTML = header() + `<main class="wrap">${strip(d)}${banners(d, q)}${tabBar(d)}${frLegend()}${view}
     <footer class="foot"><span>${ic("history", 13)}Son yenileme <b>${esc(fHMS.format(new Date(S.okAt || Date.now())))}</b> · 60 sn'de bir</span><span>${ic("lock", 13)}Salt okunur · sürüm ${esc(d.version)}</span></footer></main>`
     if (S.first) {
       S.first = false

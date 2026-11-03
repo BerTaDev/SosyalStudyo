@@ -1636,7 +1636,13 @@ def _snap_fit(body):
 
 def _collect_stats():
     import accountstats
-    accountstats.collect()
+    if not accountstats.collect():
+        return
+    with _lock:
+        wait = SNAP_MIN - (time.time() - (_load().get("snap_try") or 0))
+    if wait > 0:
+        time.sleep(wait + 1)
+    maybe_snapshot(force=True)
 
 
 def _snap_sig(body):

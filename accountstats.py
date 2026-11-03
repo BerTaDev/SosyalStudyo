@@ -4,7 +4,8 @@ import time
 
 import core
 
-EVERY = 3600
+EVERY = 900
+HEAVY_EVERY = 3600
 TT_EVERY = 6 * 3600
 KEEP_DAYS = 60
 SERIES_DAYS = 30
@@ -47,18 +48,19 @@ def _title(text, n=90):
     return line[:n]
 
 
-def _ig():
+def _ig(heavy=True):
     import igaccount
     if not core.settings()["instagram"].get("user_id"):
         return None, []
     prof = igaccount.profile()
     out = {"followers": _num(prof.get("followers_count")), "follows": _num(prof.get("follows_count")),
            "media": _num(prof.get("media_count")), "username": prof.get("username")}
-    try:
-        tot = igaccount.total_views()
-        out.update({k: _num(tot.get(k)) for k in ("views", "likes", "comments", "shares", "saves")})
-    except Exception:  # noqa: BLE001
-        pass
+    if heavy:
+        try:
+            tot = igaccount.total_views()
+            out.update({k: _num(tot.get(k)) for k in ("views", "likes", "comments", "shares", "saves")})
+        except Exception:  # noqa: BLE001
+            pass
     try:
         ins = igaccount.account_insights(7)
         t = ins.get("totals") or {}
@@ -66,6 +68,8 @@ def _ig():
                    interactions7=_num(t.get("total_interactions")))
     except Exception:  # noqa: BLE001
         pass
+    if not heavy:
+        return out, None
     recent = []
     try:
         for m in ((igaccount.media() or {}).get("items") or [])[:8]:
@@ -134,14 +138,17 @@ def collect(force=False):
         old = {}
         for r in d.get("recent") or []:
             old.setdefault(r.get("p"), []).append(r)
-        jobs = [("ig", _ig), ("yt", _yt)]
+        heavy = force or now - float(d.get("heavy_at") or 0) >= HEAVY_EVERY
+        if heavy:
+            d["heavy_at"] = now
+        jobs = [("ig", lambda: _ig(heavy)), ("yt", _yt)]
         if force or now - float(d.get("tt_at") or 0) >= TT_EVERY:
             jobs.append(("tt", _tt))
             d["tt_at"] = now
         for key, fn in jobs:
             val, rows = _run(fn)
             if val is not None:
-                cur[key] = dict(val, at=_utc(now))
+                cur[key] = {**(cur.get(key) or {}), **{k: v for k, v in val.items() if v is not None}, "at": _utc(now)}
             if rows is not None:
                 old[key] = rows
         rows = [r for k in ("ig", "yt", "tt") for r in old.get(k) or []]
