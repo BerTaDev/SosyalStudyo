@@ -9,11 +9,11 @@
   <a href="#kurulum-rehberleri">Kurulum rehberleri</a>
 </p>
 
-> **English:** Sosyal Stüdyo is a free, open-source (MIT) Windows app for short-form social video. You write an idea; Claude Code agents script, animate, narrate (ElevenLabs) and subtitle it; you review it in a phone preview and schedule it for Instagram, YouTube Shorts and TikTok. Includes idea batches, a research browser with a research agent, autopilot campaigns, a calendar, account views and optional Cloudflare cloud publishing. The interface is in Turkish. Everything runs and stays on your PC, with no telemetry.
+> **English:** Sosyal Stüdyo is a free, source-available Windows app for short-form social video, licensed under CC BY-NC-SA 4.0 (you may modify and share it non-commercially, under the same license). You write an idea; Claude Code agents script, animate, narrate (ElevenLabs) and subtitle it; you review it in a phone preview and schedule it for Instagram, YouTube Shorts and TikTok. Includes idea batches, a research browser with a research agent, autopilot campaigns, a calendar, account views and optional Cloudflare cloud publishing. The interface is in Turkish. Everything runs and stays on your PC, with no telemetry.
 
 # Sosyal Stüdyo
 
-Sosyal Stüdyo, kısa video üretimini ve paylaşımını tek pencerede toplayan, Windows için ücretsiz ve açık kaynak bir masaüstü uygulamasıdır. Konseptini yazarsın; **Claude ajanları** metni yazar, sahneleri canlandırır, **ElevenLabs** ile seslendirir ve altyazıyı ekler. Sen videoyu telefon önizlemesinde inceler, gerekirse ajana not bırakır, sonra **Instagram, YouTube Shorts ve TikTok** için planlarsın.
+Sosyal Stüdyo, kısa video üretimini ve paylaşımını tek pencerede toplayan, Windows için ücretsiz ve kaynak kodu açık bir masaüstü uygulamasıdır. Konseptini yazarsın; **Claude ajanları** metni yazar, sahneleri canlandırır, **ElevenLabs** ile seslendirir ve altyazıyı ekler. Sen videoyu telefon önizlemesinde inceler, gerekirse ajana not bırakır, sonra **Instagram, YouTube Shorts ve TikTok** için planlarsın.
 
 ## Özellikler
 
@@ -99,7 +99,13 @@ Stüdyo bir Python sunucusu (`server.py`), tarayıcı arayüzü (`web/`), video 
 
 ## Lisans
 
-Sosyal Stüdyo [MIT lisansı](LICENSE) ile yayınlanır. © 2026 BerTaDEV
+Sosyal Stüdyo [CC BY-NC-SA 4.0](LICENSE) lisansıyla yayınlanır. © 2026 BerTaDEV
+
+- **Geliştirip paylaşabilirsin:** Kodu değiştirebilir, kendi sürümünü yayınlayabilirsin. Sosyal Stüdyo'yu ve BerTaDEV'i kaynak olarak belirtmen gerekir.
+- **Aynı lisansla:** Değiştirdiğin sürümü de CC BY-NC-SA 4.0 ile paylaşmalısın.
+- **Ticari kullanım yok:** Sosyal Stüdyo'yu ya da ondan türettiğin bir sürümü satamaz, ticari bir ürünün ya da hizmetin parçası olarak dağıtamazsın.
+
+Ayrıntılar için [lisans özeti](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.tr). 1.0.0 sürümü MIT lisansıyla yayınlanmıştı; 1.0.1 ve sonrası CC BY-NC-SA 4.0 ile yayınlanır.
 
 Üçüncü taraf bileşenler:
 

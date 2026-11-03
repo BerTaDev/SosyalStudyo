@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Sosyal Stüdyo",
   "author": "BerTaDEV",
-  "license": "MIT",
+  "license": "CC-BY-NC-SA-4.0",
   "private": true,
   "main": "main.js",
   "scripts": {
