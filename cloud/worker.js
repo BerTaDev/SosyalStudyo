@@ -1,4 +1,4 @@
-const VERSION = 4
+const VERSION = 8
 const STORAGE_LIMIT = 1073741824
 const STORAGE_MARGIN = 16 * 1024 * 1024
 const LEAD_MS = 10 * 60 * 1000
@@ -18,6 +18,10 @@ const RECENT_KEEP = 12
 const THUMB_MAX = 300 * 1024
 const SNAP_MAX = 64 * 1024
 const PANEL_TTL = 30 * 86400
+const IGSTAT_KEEP = 90
+const IG_LIVE_MS = 15 * 60 * 1000
+const STUDIO_STALE_MS = 70 * 60 * 1000
+const IG_FIELDS = "username,followers_count,follows_count,media_count"
 const PID_RE = /^[\w-]{1,40}$/
 const TOKEN_RE = /^[\w-]{16,64}$/
 const STORED = new Set(["uploading", "ready", "preparing", "publishing", "error"])
@@ -620,7 +624,7 @@ async function hasSession(request, env, cfg) {
 }
 
 async function panelData(env) {
-  const [idx, snap] = await Promise.all([readIndex(env), env.STORE.get("snap", "json")])
+  const [idx, snap, igs] = await Promise.all([readIndex(env), env.STORE.get("snap", "json"), env.STORE.get("igstat", "json")])
   const jobs = Object.entries(idx.jobs).map(([pid, e]) => ({ pid, ...e })).sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
   const n = jobs.find(j => UPCOMING.has(j.status))
   return {
@@ -629,6 +633,7 @@ async function panelData(env) {
     recent: (idx.recent || []).slice().reverse(), events: (idx.events || []).slice().reverse(),
     ig: { configured: !!idx.ig?.configured, updated: idx.ig?.updated || null, refreshed: idx.ig?.refreshed || null },
     meta: { last_action: idx.last_action || null, last_error: idx.last_error || null }, snapshot: snap || null,
+    igstat: await igStatView(env, idx, snap, igs),
   }
 }
 
@@ -909,6 +914,43 @@ async function refreshToken(run) {
   addEvent(idx, null, "token", "Instagram anahtarı yenilendi")
 }
 
+let igLive = null
+const utcDay = t => new Date(t).toISOString().slice(0, 10)
+
+function igPick(d) {
+  const n = v => (typeof v === "number" ? v : null)
+  return { username: d.username || null, followers: n(d.followers_count), follows: n(d.follows_count), media: n(d.media_count) }
+}
+
+async function dailyIgStat(run) {
+  const day = utcDay(Date.now())
+  run.idx.ig_day = day
+  run.dirty = true
+  const cfg = await igConfig(run)
+  if (!cfg) return
+  const r = await graph(run, cfg, "GET", cfg.user_id, { fields: IG_FIELDS })
+  if (!r.ok) return
+  run.ops += 2
+  const cur = (await run.env.STORE.get("igstat", "json")) || {}
+  const p = igPick(r.data)
+  const hist = (cur.hist || []).filter(h => h.d !== day).concat([{ d: day, f: p.followers, m: p.media }]).slice(-IGSTAT_KEEP)
+  await run.env.STORE.put("igstat", JSON.stringify({ ...p, at: iso(Date.now()), hist }))
+}
+
+async function igStatView(env, idx, snap, stored) {
+  const base = stored ? { ...stored, live: false } : null
+  if (!idx.ig?.configured) return base
+  if (Date.now() - (Date.parse(snap?.stats?.at || "") || 0) < STUDIO_STALE_MS) return base
+  if (!igLive || Date.now() - igLive.t >= IG_LIVE_MS || igLive.t > Date.now()) {
+    const cfg = await env.STORE.get("cfg:ig", "json")
+    if (!cfg || !cfg.token || !cfg.user_id) return base
+    const r = await graph({ ops: 0 }, cfg, "GET", cfg.user_id, { fields: IG_FIELDS })
+    if (!r.ok || !r.data) return base
+    igLive = { t: Date.now(), data: { ...igPick(r.data), at: iso(Date.now()) } }
+  }
+  return { hist: [], ...(stored || {}), ...igLive.data, live: true }
+}
+
 async function cron(env) {
   const idx = await env.STORE.get("index", "json")
   if (!idx || !idx.jobs) return { idle: true }
@@ -919,7 +961,8 @@ async function cron(env) {
     else if ((e.status === "ready" || e.status === "uploading") && Date.parse(e.at) - now <= LEAD_MS) due.push(pid)
   }
   const refresh = needsRefresh(idx.ig, now)
-  if (!due.length && !refresh) return { idle: true }
+  const statDay = !!idx.ig?.configured && idx.ig_day !== utcDay(now)
+  if (!due.length && !refresh && !statDay) return { idle: true }
   const run = { env, idx, cfg: undefined, meta: undefined, dirty: false, ops: 1 }
   due.sort((a, b) => Date.parse(idx.jobs[a].at) - Date.parse(idx.jobs[b].at))
   for (const pid of due) {
@@ -932,12 +975,31 @@ async function cron(env) {
     }
   }
   if (refresh && run.ops <= OPS_BUDGET) await refreshToken(run)
+  if (statDay && run.ops <= OPS_BUDGET) await dailyIgStat(run)
   if (run.dirty) await writeIndex(env, idx)
   return { idle: false, due: due.length }
 }
 
 // Lucide icons, ISC License, https://lucide.dev
 const PANEL_ICONS = {
+  "youtube": '<path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/> <path d="m10 15 5-3-5-3z"/>',
+  "bot": '<path d="M12 8V4H8"/> <rect width="16" height="12" x="4" y="8" rx="2"/> <path d="M2 14h2"/> <path d="M20 14h2"/> <path d="M15 13v2"/> <path d="M9 13v2"/>',
+  "users": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/> <circle cx="9" cy="7" r="4"/> <path d="M22 21v-2a4 4 0 0 0-3-3.87"/> <path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  "heart": '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+  "message-circle": '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  "trending-up": '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/> <polyline points="16 7 22 7 22 13"/>',
+  "trending-down": '<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>',
+  "list-checks": '<path d="m3 17 2 2 4-4"/> <path d="m3 7 2 2 4-4"/> <path d="M13 6h8"/> <path d="M13 12h8"/> <path d="M13 18h8"/>',
+  "bell": '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/> <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  "workflow": '<rect width="8" height="8" x="3" y="3" rx="2"/> <path d="M7 11v4a2 2 0 0 0 2 2h4"/> <rect width="8" height="8" x="13" y="13" rx="2"/>',
+  "music": '<path d="M9 18V5l12-2v13"/> <circle cx="6" cy="18" r="3"/> <circle cx="18" cy="16" r="3"/>',
+  "zap": '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+  "circle-pause": '<circle cx="12" cy="12" r="10"/> <line x1="10" x2="10" y1="15" y2="9"/> <line x1="14" x2="14" y1="15" y2="9"/>',
+  "layers": '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+  "chart-column": '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  "layout-dashboard": '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+  "wand-sparkles": '<path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/> <path d="m14 7 3 3"/> <path d="M5 6v4"/> <path d="M19 14v4"/> <path d="M10 2v2"/> <path d="M7 8H3"/> <path d="M21 16h-4"/> <path d="M11 3H9"/>',
+  "circle-arrow-up": '<circle cx="12" cy="12" r="10"/> <path d="m16 12-4-4-4 4"/> <path d="M12 16V8"/>',
   "palette": '<circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>',
   "sparkles": '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>',
   "pause": '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
@@ -1355,6 +1417,84 @@ html.fx .cx-root{-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filte
 html.still .bgfx *,html.still .btn.primary::after,html.still .top .logo,html.still .hero::after,html.still .bar i.st{animation:none!important}
 html.still .btn.primary::after{display:none}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+.chip.yt,.chip.tt{color:var(--text)}.chip.yt .ic{color:#ff4e45}.chip.tt .ic{color:#25f4ee}.chip.off{opacity:.7}
+.seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px;margin:0 0 14px;border-radius:16px;background:var(--bg2);border:1px solid var(--line);box-shadow:var(--shadow)}
+.sg{position:relative;display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:6px 8px;border-radius:12px;color:var(--muted);font-weight:620;font-size:13px;transition:background .2s,color .2s;min-width:0}
+.sg>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sg em{font-style:normal;font-size:10.5px;font-weight:700;min-width:18px;height:18px;padding:0 5px;border-radius:9px;display:inline-grid;place-items:center;background:var(--bg4);color:var(--text)}
+.sg.on{color:var(--text);background:var(--bg3);box-shadow:inset 0 0 0 1px var(--line2)}
+.sg.on .ic{color:var(--accent2)}
+html.fx .sg.on{background:linear-gradient(135deg,rgba(var(--accent-rgb),.24),rgba(var(--accent-rgb),.08));box-shadow:inset 0 0 0 1px rgba(var(--accent-rgb),.45)}
+@media (max-width:520px){.sg{flex-direction:column;gap:3px;min-height:52px;font-size:11.5px;padding:6px 4px}.sg em{position:absolute;top:4px;right:6px;height:16px;min-width:16px;font-size:10px}}
+.one{display:flex;flex-direction:column;gap:14px;max-width:860px;margin:0 auto}
+.calsum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;text-align:center}
+.calsum b{display:block;font-size:23px;font-weight:750;line-height:1.1;font-variant-numeric:tabular-nums}
+.calsum span{font-size:12px;color:var(--muted)}
+.calsum .warn b{color:var(--warn)}.calsum .ok b{color:var(--ok)}
+.calday .sh .chs{margin-left:0;text-transform:none;letter-spacing:0;font-weight:500;color:var(--faint)}
+.calday .sh .n{margin-left:auto}
+.crow{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--line);outline:none}
+.crow:first-child{border-top:0;padding-top:2px}.crow:last-child{padding-bottom:2px}
+.crow[data-open]{cursor:pointer}
+.ctime{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:62px;flex:none}
+.ctime b{font-size:16px;font-weight:720;line-height:1.2;font-variant-numeric:tabular-nums}
+.ctime .cd{font-size:10.5px;padding:0 6px}
+.crow.pc .ctime b{color:var(--warn)}
+.crow .grow>b{display:block;font-size:13.5px;font-weight:620;line-height:1.35}
+.pts{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.pt{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:2px 8px 2px 6px;border-radius:999px;background:var(--bg3);color:var(--soft);border:1px solid var(--line);white-space:nowrap}
+.pt.ok{color:var(--ok);background:var(--okbg);border-color:var(--okln)}.pt.warn{color:var(--warn);background:var(--warnbg);border-color:var(--warnln)}
+.pt.bad{color:var(--bad);background:var(--badbg);border-color:var(--badln)}.pt.info{color:var(--info);background:var(--infobg);border-color:transparent}
+.ptiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+@media (min-width:700px){.ptiles{grid-template-columns:repeat(6,minmax(0,1fr))}}
+.ptiles .tile:not(.ok):not(.warn):not(.bad):not(.info):not(.acc) b{color:var(--muted)}
+.tile.acc .ti{background:var(--accbg);color:var(--acc)}
+.li.acc{background:var(--accbg);color:var(--acc)}.li.info{background:var(--infobg);color:var(--info)}.li.ok{background:var(--okbg);color:var(--ok)}.li.bad{background:var(--badbg);color:var(--bad)}.li.warn{background:var(--warnbg);color:var(--warn)}
+.who{display:inline-flex;align-items:center;gap:4px;color:var(--muted)}
+.lrow i.err{color:var(--bad)}
+.lrow i.tm{color:var(--faint)}
+.lrow i .ic{vertical-align:-2px;margin-right:2px}
+.arow{display:flex;gap:11px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.arow:first-of-type{border-top:0;padding-top:2px}
+.arow .grow b{display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:620}
+.arow .grow>span{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.arow.off{opacity:.62}
+.accn{font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:6px;background:var(--bg4);color:var(--soft)}
+.sthead{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:0 2px}
+.stnote{margin:0 2px}
+.frz{display:flex;gap:6px;align-items:center;margin-top:8px;padding:7px 10px;border-radius:10px;background:var(--warnbg);border:1px solid var(--warnln);color:var(--warn);font-size:12px;line-height:1.35}
+.frz>.ic{flex:none}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.pcard .ch .chs{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:500;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%}
+.pcard.ig .ch>.ic{color:#e1306c}.pcard.yt .ch>.ic{color:#ff4e45}.pcard.tt .ch>.ic{color:#25f4ee}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+.kpi .kl{display:block;font-size:12px;color:var(--muted)}
+.kpi b{display:block;font-size:25px;font-weight:750;line-height:1.15;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.dl{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;font-weight:650;color:var(--muted);font-variant-numeric:tabular-nums}
+.dl.gain{color:var(--ok)}.dl.loss{color:var(--bad)}
+.dl i{font-style:normal;font-weight:500;color:var(--faint);margin-left:2px}
+.spk{position:relative;margin:6px 0 0;touch-action:pan-y}
+.spk>svg{display:block;width:100%;height:64px;overflow:visible}
+.spk .sl{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.spk .sa{fill:rgba(var(--accent-rgb),.12);stroke:none}
+.spk .sx{position:absolute;top:0;height:64px;width:1px;background:var(--line2);display:none;pointer-events:none}
+.spk .stip{position:absolute;top:-30px;transform:translateX(-50%);display:none;padding:3px 8px;border-radius:8px;background:var(--bg2s,var(--bg3));border:1px solid var(--line2);font-size:11.5px;white-space:nowrap;pointer-events:none;z-index:2;box-shadow:var(--shadow)}
+.spk .stip b{margin-right:5px;font-variant-numeric:tabular-nums}
+.spk .stip span{color:var(--muted)}
+.spk.hov .sx,.spk.hov .stip{display:block}
+.sax{display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint);margin-top:3px}
+.spkn{display:flex;gap:8px;align-items:center;margin:8px 0 2px;padding:12px;border:1px dashed var(--line2);border-radius:12px;font-size:12px;line-height:1.4;color:var(--muted)}
+.spkn>.ic{flex:none;color:var(--faint)}
+.srow{display:flex;align-items:center;gap:11px;padding:10px 0;border-top:1px solid var(--line)}
+.srow:first-child{border-top:0;padding-top:2px}.srow:last-child{padding-bottom:2px}
+.srow .grow{display:flex;flex-direction:column;gap:2px}
+.srow .grow b{font-size:13.5px;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow .grow>span{font-size:12px;color:var(--muted)}
+.nums{display:flex;gap:10px;font-size:12px;color:var(--soft);font-variant-numeric:tabular-nums;flex:none}
+.nums span{display:inline-flex;align-items:center;gap:3px}
+.nums .ic{color:var(--muted)}
+.li.ig{color:#e1306c}.li.yt{color:#ff4e45}.li.tt{color:#25f4ee}
+@media (max-width:520px){.nums span:nth-child(3){display:none}.kpi b{font-size:22px}}
 `
 
 function panelApp(IC) {
@@ -1362,7 +1502,7 @@ function panelApp(IC) {
   const base = (location.pathname.match(/^\/p\/[^/]+/) || [""])[0]
   const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c])
   const ic = (n, s = 18, c = "") => `<svg class="ic${c ? " " + c : ""}" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n] || ""}</svg>`
-  const S = { d: null, skew: 0, last: 0, okAt: 0, busy: false, err: false, first: true, all: false, sheet: null, seen: new Set(), login: false, due: 0, ticks: 0 }
+  const S = { d: null, skew: 0, last: 0, okAt: 0, busy: false, err: false, first: true, all: false, sheet: null, seen: new Set(), login: false, due: 0, ticks: 0, tab: "ozet" }
   const THEMES = [["gunbatimi", "Gün Batımı", ["#ff6a3d", "#e1306c", "#7c3aed"], "#100d13"], ["aurora", "Aurora", ["#8b5cf6", "#14b8a6", "#3b82f6"], "#0a0e15"],
     ["okyanus", "Okyanus", ["#0ea5e9", "#2563eb", "#06b6d4"], "#07101b"], ["neon", "Neon", ["#ec4899", "#22d3ee", "#a855f7"], "#0b0912"],
     ["orman", "Orman", ["#10b981", "#84cc16", "#0d9488"], "#09110d"], ["gece", "Gece", ["#ff6a3d", "#5a5a6e", "#3c3c50"], "#060607"],
@@ -1638,7 +1778,8 @@ function panelApp(IC) {
   function snapInfo(d) {
     const sn = d.snapshot
     const at = sn ? ts(sn.at || sn.received) : NaN
-    return { sn, at, online: !!sn && now() - at < 32 * 60000 }
+    const every = sn && sn.studio && sn.studio.push_every ? sn.studio.push_every * 1000 : 30 * 60000
+    return { sn, at, online: !!sn && now() - at < every + 2 * 60000 }
   }
   function uploads(d) {
     const m = {}
@@ -1670,6 +1811,7 @@ function panelApp(IC) {
   }
   function strip(d) {
     const { sn, at, online } = snapInfo(d)
+    const conn = (sn && sn.conn) || {}
     const studio = !sn ? `<span class="chip">${ic("monitor", 14)}Stüdyodan bilgi gelmedi</span>`
       : online ? `<span class="chip ok">${ic("monitor", 14)}Stüdyo açık</span>`
         : `<span class="chip" title="Son görülme: ${esc(when(at))}">${ic("monitor-off", 14)}<span>Stüdyo kapalı · ${agoSpan(at)}</span></span>`
@@ -1677,6 +1819,10 @@ function panelApp(IC) {
       <span class="chip ${S.err ? "bad" : "ok"}"><span class="dot"></span>${S.err ? "Buluta ulaşılamadı" : "Bulut çalışıyor"}</span>
       ${studio}
       <span class="chip ${d.ig.configured ? "ig" : "warn"}">${ic("instagram", 14)}${d.ig.configured ? "Instagram bağlı" : "Instagram bağlı değil"}</span>
+      ${conn.yt ? `<span class="chip ${conn.yt === "ok" ? "yt" : conn.yt === "reconnect" ? "warn" : "off"}">${ic("youtube", 14)}${conn.yt === "ok" ? "YouTube bağlı" : conn.yt === "reconnect" ? "YouTube yeniden bağlanmalı" : "YouTube bağlı değil"}</span>` : ""}
+      ${conn.tt ? `<span class="chip ${conn.tt === "ok" ? "tt" : conn.tt === "login" ? "warn" : "off"}">${ic("music", 14)}${conn.tt === "ok" ? "TikTok bağlı" : conn.tt === "login" ? "TikTok girişi gerekli" : "TikTok bağlı değil"}</span>` : ""}
+      ${sn && sn.limit && typeof sn.limit.percent === "number" ? `<span class="chip${lvl(sn.limit.percent / 100) === "ok" ? "" : " " + lvl(sn.limit.percent / 100)}">${ic("gauge", 14)}Ajan limiti %${esc(nf.format(sn.limit.percent))}</span>` : ""}
+      ${sn && sn.studio && sn.studio.latest ? `<span class="chip warn">${ic("circle-arrow-up", 14)}Stüdyo için yeni sürüm v${esc(sn.studio.latest)}</span>` : ""}
     </div>`
   }
   function banners(d, q) {
@@ -1832,6 +1978,263 @@ function panelApp(IC) {
     </section>`
   }
 
+  const TABS = [["ozet", "Özet", "layout-dashboard"], ["takvim", "Takvim", "calendar-days"], ["uretim", "Üretim", "workflow"], ["istatistik", "İstatistik", "chart-column"]]
+  const PST = {
+    sirada: ["Sırada", "mute", "hourglass"], uretimde: ["Üretimde", "acc", "wand-sparkles"], inceleme: ["İncelemede", "info", "eye"],
+    planlandi: ["Planlandı", "ok", "calendar-clock"], paylasiliyor: ["Paylaşılıyor", "acc", "send"], paylasildi: ["Paylaşıldı", "ok", "circle-check"],
+    hata: ["Hata", "bad", "triangle-alert"],
+  }
+  const PORDER = ["sirada", "uretimde", "inceleme", "planlandi", "paylasildi", "hata"]
+  const PLAT = { ig: ["instagram", "Instagram"], yt: ["youtube", "YouTube"], tt: ["music", "TikTok"] }
+  const TST = {
+    cloud: ["Bulutta", "info"], local: ["Bilgisayardan", "warn"], published: ["Yayında", "ok"], scheduled: ["Planlandı", "ok"],
+    queued: ["Yükleme bekliyor", "warn"], uploading: ["Yükleniyor", "info"], error: ["Hata", "bad"], attached: ["Bağlandı", "ok"],
+  }
+  const AG = { working: ["Çalışıyor", "acc", "wand-sparkles"], watching: ["Hazır", "ok", "circle-check"], off: ["Kapalı", "mute", "circle-pause"] }
+  const CP = {
+    calisiyor: ["Çalışıyor", "acc", "zap"], duraklatildi: ["Duraklatıldı", "warn", "circle-pause"], bitti: ["Bitti", "ok", "circle-check"],
+    hata: ["Hata", "bad", "triangle-alert"], iptal: ["İptal", "mute", "ban"],
+  }
+  const NK = {
+    published: ["circle-check", "ok"], done: ["circle-check", "ok"], ready: ["film", "info"], error: ["triangle-alert", "bad"],
+    follow: ["users", "info"], dm: ["message-circle", "info"], comment: ["message-circle", "info"], schedule: ["calendar-clock", "info"],
+  }
+  const SP = {
+    ig: ["instagram", "Instagram", [["followers", "Takipçi", "ig_f"], ["views", "Toplam izlenme", "ig_v"]],
+      [["likes", "beğeni", "heart"], ["comments", "yorum", "message-circle"], ["reach7", "erişim (7 gün)", "users"], ["media", "gönderi", "images"]]],
+    yt: ["youtube", "YouTube", [["subscribers", "Abone", "yt_s"], ["views", "Toplam izlenme", "yt_v"]],
+      [["likes", "beğeni", "heart"], ["comments", "yorum", "message-circle"], ["videos", "video", "film"]]],
+    tt: ["music", "TikTok", [["followers", "Takipçi", "tt_f"], ["views", "Toplam izlenme", "tt_v"]], [["likes", "beğeni", "heart"], ["videos", "video", "film"]]],
+  }
+  const nfc = new Intl.NumberFormat("tr-TR", { notation: "compact", maximumFractionDigits: 1 })
+  const fmtN = v => (typeof v === "number" ? (Math.abs(v) >= 1e5 ? nfc.format(v) : nf.format(v)) : "—")
+  const snapOf = d => (d && d.snapshot) || {}
+  const ptag = (map, k) => {
+    const [l, c, i] = map[k] || [k || "—", "mute", "info"]
+    return `<span class="tag ${c}">${ic(i, 12)}${esc(l)}</span>`
+  }
+  const needsPc = x => x.ig === "local" || x.yt === "queued" || x.yt === "uploading" || (!!x.tt && x.tt !== "scheduled" && x.tt !== "published")
+  const empty = (i, b, s, cls = "") => `<div class="empty${cls ? " " + cls : ""}">${ic(i, 24)}<div><b>${b}</b><span>${s}</span></div></div>`
+
+  function tabBar(d) {
+    const sn = snapOf(d)
+    const n = {
+      takvim: (sn.plan || []).filter(x => ts(x.at) > now() - 36e5).length,
+      uretim: ((sn.pipeline && sn.pipeline.items) || []).filter(x => x.status !== "paylasiliyor").length,
+    }
+    return `<nav class="seg" role="tablist">${TABS.map(([id, l, i]) => `<button class="sg${S.tab === id ? " on" : ""}" data-act="tab" data-tab="${id}" role="tab" aria-selected="${S.tab === id}">${ic(i, 17)}<span>${l}</span>${n[id] ? `<em>${n[id]}</em>` : ""}</button>`).join("")}</nav>`
+  }
+  function platTag(k, st) {
+    if (!st) return ""
+    const [pi, pn] = PLAT[k]
+    const [l, c] = TST[st] || [st, ""]
+    return `<span class="pt ${c}" title="${pn}: ${esc(l)}">${ic(pi, 13)}<span>${esc(l)}</span></span>`
+  }
+  function calendarView(d) {
+    const sn = snapOf(d)
+    const { online } = snapInfo(d)
+    if (!d.snapshot || !Array.isArray(sn.plan)) return empty("calendar-days", "Takvim bilgisi gelmedi", "Stüdyo açıldığında planlı paylaşımlar burada listelenir.")
+    const plan = (sn.plan || []).map(x => ({ ...x, t: ts(x.at) })).filter(x => !Number.isNaN(x.t) && x.t > now() - 36e5).sort((a, b) => a.t - b.t)
+    if (!plan.length) return empty("calendar-days", "Planlı paylaşım yok", "Stüdyoda bir video planlandığında Instagram, YouTube ve TikTok saatleriyle burada görünür.")
+    const pc = plan.filter(needsPc)
+    const days = new Map()
+    for (const x of plan) {
+      const k = new Date(x.t).toDateString()
+      if (!days.has(k)) days.set(k, [])
+      days.get(k).push(x)
+    }
+    const open = new Set((d.jobs || []).map(j => j.pid))
+    let i = 2
+    const head = `<div class="card calsum rise" style="--i:1">
+        <div><b>${plan.length}</b><span>planlı paylaşım</span></div>
+        <div><b>${days.size}</b><span>gün</span></div>
+        <div class="${pc.length ? "warn" : "ok"}"><b>${pc.length}</b><span>bilgisayar gerektiren</span></div>
+      </div>
+      ${pc.length && !online ? `<div class="banner warn rise" style="--i:2"><span class="bi">${ic("monitor", 18)}</span><div class="grow"><b>Stüdyo şu an kapalı</b><span>Bilgisayardan yapılacak ${pc.length} paylaşım var, ilki ${esc(when(pc[0].t))}. O saatte bilgisayar açık olmalı.</span></div></div>` : ""}`
+    const groups = [...days.values()].map(list => `<section class="calday rise" style="--i:${Math.min(++i, 9)}">
+        <h3 class="sh">${ic("calendar-days", 15)}${esc(day(list[0].t))}${Math.abs(dayDiff(list[0].t)) > 1 ? "" : ` <span class="chs">${esc(fLong.format(new Date(list[0].t)))}</span>`}<span class="n">${list.length}</span></h3>
+        <div class="card">${list.map(x => `<div class="crow${needsPc(x) ? " pc" : ""}"${open.has(x.pid) ? ` data-open="${esc(x.pid)}" role="button" tabindex="0"` : ""}>
+          <span class="ctime"><b>${esc(fHM.format(new Date(x.t)))}</b>${cdSpan(x.t)}</span>
+          <div class="grow"><b>${esc(title(x))}</b><div class="pts">${platTag("ig", x.ig)}${platTag("yt", x.yt)}${platTag("tt", x.tt)}</div></div>
+        </div>`).join("")}</div>
+      </section>`).join("")
+    return head + groups + `<div class="note">${ic("info", 13)}<span><b>Bulutta</b> ve <b>Planlandı</b> olanlar bilgisayar kapalıyken de paylaşılır. <b>Bilgisayardan</b> olanlar için o saatte, <b>Yükleme bekliyor</b> olanlar için o saatten önce stüdyo bir kez açık olmalı.</span></div>`
+  }
+  function limitCard(sn) {
+    const c = sn.limit || {}
+    const has = typeof c.percent === "number"
+    const p = has ? c.percent / 100 : 0
+    const reset = ts(c.resets)
+    const past = !Number.isNaN(reset) && reset <= now()
+    const body = !has ? `<div class="none">${ic("gauge", 24)}<b>Kullanım bilgisi yok</b><span>Stüdyo kullanım raporunu aldığında burada görünür.</span></div>`
+      : `<div class="big"><b>%${esc(nf.format(c.percent))}</b><span>5 saatlik limitin kullanıldı</span></div>
+        <div class="bar lg"><i class="${lvl(p)}" style="width:${Math.min(100, c.percent ? Math.max(p * 100, 1.5) : 0)}%"></i></div>
+        <div class="sub">${Number.isNaN(reset) ? "" : past ? `<span>${ic("rotate-ccw", 13)}Limit sıfırlandı · yeni rapor bekleniyor</span>` : `<span>${ic("rotate-ccw", 13)}Sıfırlanma <b>${esc(fHM.format(new Date(reset)))}</b> ${cdSpan(reset)}</span>`}${c.updated ? `<span>${ic("history", 13)}${agoSpan(ts(c.updated))}</span>` : ""}</div>`
+    return `<section class="card o2 rise" style="--i:4"><div class="ch">${ic("gauge", 15)}Ajan kullanımı${has ? ` <span class="tag ${lvl(p)}">%${esc(nf.format(c.percent))}</span>` : ""}</div>${body}</section>`
+  }
+  function agentsCard(sn) {
+    const list = (sn.agents || []).slice().sort((a, b) => (a.live === "off") - (b.live === "off"))
+    const on = list.filter(a => a.live && a.live !== "off").length
+    const rows = list.map(a => {
+      const sub = a.post ? esc(a.post) + (a.text ? " · " + esc(a.text) : "") : a.live === "off" ? (a.seen ? `Son görülme ${agoSpan(ts(a.seen))}` : "Kapalı") : "İş bekliyor"
+      return `<div class="arow${a.live === "off" ? " off" : ""}"><span class="li ${(AG[a.live] || [])[1] || ""}">${ic("bot", 17)}</span>
+        <div class="grow"><b>${esc(a.name)}${a.account && a.account !== "main" ? `<em class="accn">${esc(String(a.account).toUpperCase())}</em>` : ""}</b><span>${sub}</span></div>${ptag(AG, a.live)}</div>`
+    }).join("")
+    return `<section class="card o4 rise" style="--i:5"><div class="ch">${ic("bot", 15)}Ajanlar <span class="tag ${on ? "ok" : "mute"}">${on} açık</span></div>
+      ${list.length ? rows : `<div class="none">${ic("bot", 24)}<b>Ajan yok</b><span>Stüdyoya bir ajan bağlandığında burada görünür.</span></div>`}</section>`
+  }
+  function autoSec(sn) {
+    const list = sn.auto || []
+    if (!list.length) return ""
+    const n = v => nf.format(v || 0)
+    return `<section class="o5 rise" style="--i:5"><h3 class="sh">${ic("zap", 15)}Otopilot <span class="n">${list.length}</span></h3><div class="card">${list.map(a => `<div class="lrow">
+        <span class="li ${(CP[a.status] || [])[1] || ""}">${ic("zap", 17)}</span>
+        <div class="grow"><b>${esc(a.name || "Kampanya")}</b><span class="lt">${ptag(CP, a.status)}<span>${n(a.videos)} video</span>·<span>${n(a.scheduled)} planlı</span>·<span>${n(a.published)} yayında</span>${a.producing ? `·<span>${n(a.producing)} üretimde</span>` : ""}</span>
+          ${a.stage ? `<i>${esc(a.stage)}</i>` : ""}${a.next && a.next.at ? `<i>${ic("calendar-clock", 12)}Sıradaki: ${esc(a.next.title)} · ${esc(when(ts(a.next.at)))}</i>` : ""}</div>
+      </div>`).join("")}</div></section>`
+  }
+  function productionView(d) {
+    const sn = snapOf(d)
+    if (!d.snapshot || !sn.pipeline) return empty("workflow", "Üretim bilgisi gelmedi", "Stüdyo açıldığında üretim hattı, ajanlar ve kullanım limiti burada görünür.")
+    const c = sn.pipeline.counts || {}
+    const tl = `<nav class="ptiles o1 rise" style="--i:2">${PORDER.map(k => {
+      const [l, cl, i] = PST[k]
+      return `<div class="tile ${c[k] ? cl : ""}"><span class="ti">${ic(i, 16)}</span><b>${c[k] || 0}</b><span>${l}</span></div>`
+    }).join("")}</nav>`
+    const items = sn.pipeline.items || []
+    const rows = items.map(x => `<div class="lrow">
+        <span class="li ${(PST[x.status] || [])[1] || ""}">${ic((PST[x.status] || ["", "", "film"])[2], 17)}</span>
+        <div class="grow"><b>${esc(title(x))}</b><span class="lt">${ptag(PST, x.status)}${x.status === "inceleme" && x.ready ? `<span class="tag ok">${ic("check", 12)}Onayını bekliyor</span>` : ""}${x.agent ? `<span class="who">${ic("bot", 12)}${esc(x.agent)}</span>` : ""}</span>
+          ${x.stage ? `<i>${esc(x.stage)}</i>` : ""}${x.error ? `<i class="err">${esc(x.error)}</i>` : ""}${x.updated ? `<i class="tm">Son değişiklik ${agoSpan(ts(x.updated))}</i>` : ""}</div>
+      </div>`).join("")
+    const list = items.length ? `<div class="card">${rows}</div>` : empty("circle-check", "Üretimde video yok", "Yeni bir fikir üretime alındığında ajanların ilerlemesi burada görünür.", "ok")
+    return `<div class="cols"><div class="col">${tl}
+        <section class="o3 rise" style="--i:3"><h3 class="sh">${ic("wand-sparkles", 15)}Üretim hattı <span class="n">${items.length}</span></h3>${list}</section>
+        ${autoSec(sn)}</div>
+      <div class="col">${limitCard(sn)}${agentsCard(sn)}</div></div>`
+  }
+  function delta(hist, key, cur) {
+    if (typeof cur !== "number" || !hist.length) return ""
+    const cut = new Date(now() - 7 * 864e5).toISOString().slice(0, 10)
+    const known = hist.filter(h => typeof h[key] === "number")
+    const base = known.filter(h => h.d <= cut).pop() || known[0]
+    if (!base || base.d === new Date(now()).toISOString().slice(0, 10)) return ""
+    const dv = cur - base[key]
+    const days = Math.max(1, Math.round((now() - Date.parse(base.d + "T12:00:00")) / 864e5))
+    return `<span class="dl ${dv > 0 ? "gain" : dv < 0 ? "loss" : ""}">${ic(dv < 0 ? "trending-down" : "trending-up", 13)}${dv > 0 ? "+" : ""}${esc(nf.format(dv))}<i>${days} günde</i></span>`
+  }
+  function spark(hist, key, label) {
+    const pts = hist.filter(h => typeof h[key] === "number")
+    if (pts.length < 2) return `<div class="spkn">${ic("chart-column", 15)}<span>Grafik yarından itibaren dolmaya başlar; her gün bir nokta eklenir.</span></div>`
+    const W = 300
+    const H = 64
+    const P = 4
+    let lo = Math.min(...pts.map(h => h[key]))
+    let hi = Math.max(...pts.map(h => h[key]))
+    if (lo === hi) {
+      lo -= 1
+      hi += 1
+    }
+    const x = i => P + (i * (W - 2 * P)) / (pts.length - 1)
+    const y = v => H - P - ((v - lo) * (H - 2 * P)) / (hi - lo)
+    const line = pts.map((h, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(h[key]).toFixed(1)}`).join(" ")
+    const area = `${line} L${x(pts.length - 1).toFixed(1)} ${H} L${x(0).toFixed(1)} ${H} Z`
+    const fd = s => fDay.format(new Date(s + "T12:00:00"))
+    return `<div class="spk" data-spk="${esc(JSON.stringify(pts.map(h => [h.d, h[key]])))}"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(label)}, son ${pts.length} gün: ${esc(nf.format(pts[0][key]))} → ${esc(nf.format(pts[pts.length - 1][key]))}"><path class="sa" d="${area}"/><path class="sl" d="${line}" vector-effect="non-scaling-stroke"/></svg><span class="sx"></span><span class="stip"></span><div class="sax"><span>${esc(fd(pts[0].d))}</span><span>${esc(label)}</span><span>${esc(fd(pts[pts.length - 1].d))}</span></div></div>`
+  }
+  function platCard(k, s, hist, i, frozen) {
+    if (!s) return ""
+    const [pi, pn, heads, subs] = SP[k]
+    const who = s.username ? "@" + s.username : s.title || ""
+    return `<section class="card pcard ${k} rise" style="--i:${i}">
+      <div class="ch">${ic(pi, 15)}${pn}${who ? `<span class="chs">${esc(who)}</span>` : ""}</div>
+      <div class="kpis">${heads.map(([f, l, h]) => `<div class="kpi"><span class="kl">${l}</span><b>${esc(fmtN(s[f]))}</b>${delta(hist, h, s[f])}</div>`).join("")}</div>
+      ${spark(hist, heads[0][2], heads[0][1])}
+      ${frozen ? `<div class="frz">${ic("monitor-off", 13)}<span>Stüdyo kapalı, bu değerler güncellenmiyor${s.at ? ` · ${agoSpan(ts(s.at))} alındı` : ""}</span></div>` : ""}
+      <div class="sub">${subs.filter(([f]) => typeof s[f] === "number").map(([f, l, si]) => `<span>${ic(si, 13)}<b>${esc(fmtN(s[f]))}</b>${l}</span>`).join("")}${s.at ? `<span>${ic(s.cloud ? "cloud" : "history", 13)}${s.cloud ? "Buluttan · " : ""}${agoSpan(ts(s.at))}</span>` : ""}</div>
+    </section>`
+  }
+  function igMerge(st, c) {
+    const hist = ((st && st.hist) || []).map(h => ({ ...h }))
+    let ig = st && st.ig
+    if (!c || typeof c.followers !== "number") return { ig, hist }
+    const by = new Map(hist.map(h => [h.d, h]))
+    const put = (day, f, force) => {
+      const e = by.get(day)
+      if (e) {
+        if (force || typeof e.ig_f !== "number") e.ig_f = f
+        return
+      }
+      const n = { d: day, ig_f: f }
+      hist.push(n)
+      by.set(day, n)
+    }
+    for (const h of c.hist || []) if (typeof h.f === "number") put(h.d, h.f)
+    const sAt = ig ? ts(ig.at || st.at) : NaN
+    if (Number.isNaN(sAt) || ts(c.at) > sAt) {
+      ig = { ...(ig || {}), followers: c.followers, follows: c.follows ?? (ig && ig.follows), media: c.media ?? (ig && ig.media),
+        username: c.username || (ig && ig.username), at: c.at, cloud: true }
+      const t = new Date(now())
+      put(`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`, c.followers, true)
+    }
+    hist.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0))
+    return { ig, hist }
+  }
+  function recentPosts(list) {
+    if (!list.length) return ""
+    const rows = list.map(r => {
+      const [pi, pn] = PLAT[r.p] || ["film", ""]
+      const link = safe(r.u)
+      const t = ts(r.at)
+      const num = (v, i, l) => (typeof v === "number" ? `<span title="${l}">${ic(i, 12)}${esc(fmtN(v))}</span>` : "")
+      return `<div class="srow"><span class="li ${esc(r.p)}" title="${pn}">${ic(pi, 16)}</span><div class="grow"><b>${esc(r.t || "Başlıksız paylaşım")}</b><span>${Number.isNaN(t) ? pn : `${pn} · ${esc(when(t))}`}</span></div>
+        <div class="nums">${num(r.v, "eye", "İzlenme")}${num(r.l, "heart", "Beğeni")}${num(r.c, "message-circle", "Yorum")}</div>
+        ${link ? `<a class="ib sm" href="${esc(link)}" target="_blank" rel="noopener noreferrer" aria-label="${pn}'da aç">${ic("external-link", 15)}</a>` : ""}</div>`
+    }).join("")
+    return `<section class="rise" style="--i:6"><h3 class="sh">${ic("trending-up", 15)}Son paylaşımların performansı</h3><div class="card">${rows}</div></section>`
+  }
+  function statsView(d) {
+    const st = snapOf(d).stats
+    const { ig, hist } = igMerge(st, d.igstat)
+    if (!st && !ig) return empty("chart-column", "İstatistik henüz gelmedi", "Uzaktan takip açıkken stüdyo hesap istatistiklerini saatte bir toplar ve buraya gönderir.")
+    const sAt = st ? ts(st.at) : NaN
+    const stale = Number.isNaN(sAt) || now() - sAt > 70 * 60000
+    const cards = [["ig", ig], ["yt", st && st.yt], ["tt", st && st.tt]].map(([k, s], i) => platCard(k, s, hist, 2 + i, k !== "ig" && stale)).join("")
+    return `<div class="sthead rise" style="--i:1">${ic("history", 14)}<span>${st ? `Stüdyodan son veri ${agoSpan(sAt)} · stüdyo açıkken saatte bir yenilenir` : "Stüdyodan henüz istatistik gelmedi"}</span></div>
+      <div class="note stnote rise" style="--i:1">${ic("info", 13)}<span><b>Instagram</b> takipçi ve gönderi sayısını bulut, stüdyo kapalıyken de günceller. <b>YouTube</b> ve <b>TikTok</b> istatistikleri yalnızca stüdyo açıkken güncellenir; kapalıyken son alınan değerler görünür.</span></div>
+      ${cards ? `<div class="pgrid">${cards}</div>` : empty("users", "Bağlı hesap yok", "Stüdyoda Instagram, YouTube ya da TikTok bağlandığında istatistikler burada görünür.")}
+      ${recentPosts((st && st.recent) || [])}`
+  }
+  function notesSec(d) {
+    const n = snapOf(d).notes
+    if (!n || !(n.items || []).length) return ""
+    const rows = n.items.slice(0, 6).map(e => {
+      const [i, c] = NK[e.kind] || ["bell", ""]
+      const t = ts(e.at)
+      return `<li><span class="evi ${c}">${ic(i, 14)}</span><div class="grow"><p>${esc(e.title)}</p>${e.text ? `<b>${esc(e.text)}</b>` : ""}<span class="tm">${agoSpan(t)} · ${esc(when(t))}</span></div></li>`
+    }).join("")
+    return `<section class="o7 rise" style="--i:9"><h3 class="sh">${ic("bell", 15)}Stüdyo bildirimleri${n.unread ? ` <span class="n" title="Okunmamış">${n.unread}</span>` : ""}</h3><div class="card"><ol class="tl">${rows}</ol></div></section>`
+  }
+  function sparkHover(e) {
+    const s = e.target.closest && e.target.closest(".spk[data-spk]")
+    if (!s) return
+    let pts
+    try {
+      pts = JSON.parse(s.dataset.spk)
+    } catch {
+      return
+    }
+    const r = s.getBoundingClientRect()
+    const f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))
+    const i = Math.round(f * (pts.length - 1))
+    const px = ((4 + (i * 292) / (pts.length - 1)) / 300) * r.width
+    const tip = s.querySelector(".stip")
+    tip.innerHTML = `<b>${esc(nf.format(pts[i][1]))}</b><span>${esc(fDay.format(new Date(pts[i][0] + "T12:00:00")))}</span>`
+    tip.style.left = Math.max(46, Math.min(r.width - 46, px)) + "px"
+    s.querySelector(".sx").style.left = px + "px"
+    s.classList.add("hov")
+  }
+
   function render() {
     const d = S.d
     const jobs = d.jobs || []
@@ -1840,10 +2243,12 @@ function panelApp(IC) {
     const loc = localItems(d)
     const ups = uploads(d)
     root.className = S.first ? "first" : ""
-    root.innerHTML = header() + `<main class="wrap">${strip(d)}${banners(d, q)}<div class="cols">
+    const view = S.tab === "takvim" ? `<div class="one">${calendarView(d)}</div>` : S.tab === "uretim" ? productionView(d)
+      : S.tab === "istatistik" ? `<div class="one">${statsView(d)}</div>` : `<div class="cols">
       <div class="col">${hero(d, loc)}${tiles(q, rec, loc)}${queue(q, ups)}${localSec(d, loc)}</div>
-      <div class="col">${storageCard(d)}${usageCard(d)}${recentSec(rec)}${eventsSec(d.events || [])}</div>
-    </div>
+      <div class="col">${storageCard(d)}${usageCard(d)}${notesSec(d)}${recentSec(rec)}${eventsSec(d.events || [])}</div>
+    </div>`
+    root.innerHTML = header() + `<main class="wrap">${strip(d)}${banners(d, q)}${tabBar(d)}${view}
     <footer class="foot"><span>${ic("history", 13)}Son yenileme <b>${esc(fHMS.format(new Date(S.okAt || Date.now())))}</b> · 60 sn'de bir</span><span>${ic("lock", 13)}Salt okunur · sürüm ${esc(d.version)}</span></footer></main>`
     if (S.first) {
       S.first = false
@@ -2108,6 +2513,14 @@ function panelApp(IC) {
       const act = a.dataset.act
       if (act === "refresh") load()
       if (act === "theme") toggleThemePop()
+      if (act === "tab" && TABS.some(t => t[0] === a.dataset.tab)) {
+        S.tab = a.dataset.tab
+        try {
+          localStorage.setItem("sosyal-tab", S.tab)
+        } catch {}
+        render()
+        window.scrollTo({ top: 0, behavior: "auto" })
+      }
       if (act === "all") {
         S.all = !S.all
         render()
@@ -2134,6 +2547,16 @@ function panelApp(IC) {
     const o = e.target.closest("[data-open]")
     if (o) openSheet(o.dataset.open, e.isTrusted)
   })
+  root.addEventListener("pointermove", sparkHover)
+  root.addEventListener("pointerdown", sparkHover)
+  root.addEventListener("pointerout", e => {
+    const s = e.target.closest && e.target.closest(".spk")
+    if (s && !s.contains(e.relatedTarget)) s.classList.remove("hov")
+  })
+  try {
+    const t = localStorage.getItem("sosyal-tab")
+    if (TABS.some(x => x[0] === t)) S.tab = t
+  } catch {}
   root.addEventListener("keydown", e => {
     if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("[data-open]")) {
       e.preventDefault()

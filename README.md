@@ -27,6 +27,7 @@ Sosyal Stüdyo, kısa video üretimini ve paylaşımını tek pencerede toplayan
 - **Yapay Zeka:** ajanların ne yaptığını, sıradaki işleri ve canlı akışı izle; Claude kullanım limitini takip et, modeli ve efor düzeyini seç.
 - **Oturumlar:** farklı hesaplar için birbirinden ayrı stüdyolar; sol üstteki seçiciden geç.
 - **Bulut yayın:** ücretsiz Cloudflare hesabınla Instagram paylaşımları bilgisayarın kapalıyken de saatinde çıkar.
+- **Uzaktan takip paneli:** telefonundan şifreyle açtığın panelde takvim, üretim hattı, ajanlar ve Instagram, YouTube, TikTok istatistikleri. Instagram istatistikleri stüdyo kapalıyken de güncellenir; YouTube ve TikTok stüdyo açıkken güncellenir.
 - **Bildirimler ve temalar:** video hazır, ajan yanıtı, paylaşım bildirimleri; yedi tema.
 
 ## Ekran görüntüleri
@@ -96,6 +97,7 @@ Stüdyo bir Python sunucusu (`server.py`), tarayıcı arayüzü (`web/`), video 
 - Stüdyo telemetri ya da kullanım verisi toplamaz.
 - API anahtarları ve erişim izinleri yalnızca senin bilgisayarında saklanır ve sadece ilgili servise (ElevenLabs, Instagram, YouTube, TikTok, Cloudflare) bağlanmak için kullanılır.
 - Bulut yayını açarsan planlı videolar senin kendi Cloudflare hesabına yüklenir.
+- Uzaktan takibi açarsan takvim, üretim durumu ve hesap istatistiklerinin özeti de yalnızca senin kendi Cloudflare hesabına gönderilir; panel şifreyle korunur.
 
 ## Lisans
 

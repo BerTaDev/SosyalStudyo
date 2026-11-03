@@ -33,7 +33,8 @@ LOCAL = ("failed", "removed")
 PANEL_VERSION = 2
 SITE_VERSION = 3
 PANEL_ITER = 6000
-SNAP_EVERY = 1800
+SNAP_EVERY = 900
+SNAP_BUDGET = 60 * 1024
 SNAP_MIN = 120
 THUMB_W = 360
 THUMB_MAX = 300 * 1024
@@ -1520,7 +1521,122 @@ def _snap_body(c, s):
               "planned": sum(1 for p in posts if p.get("status") == "planlandi"),
               "tz": int(offset.total_seconds() // 60) if offset else 0,
               "last_sync": to_utc(s["last_sync"]) if s.get("last_sync") else None}
-    return {"at": to_utc(dt.datetime.now()), "usage": usage, "local_only": lo, "uploading": up, "studio": studio}
+    body = {"at": to_utc(dt.datetime.now()), "usage": usage, "local_only": lo, "uploading": up, "studio": studio}
+    try:
+        body.update(_snap_extra(posts, studio))
+    except Exception:  # noqa: BLE001
+        traceback.print_exc()
+    return _snap_fit(body)
+
+
+CLOUD_STATES = ("uploading", "ready", "preparing", "publishing")
+MAKING = ("sirada", "uretimde", "inceleme", "hata", "paylasiliyor")
+
+
+def _utc_or_none(local):
+    try:
+        return to_utc(local) if local else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _snap_extra(posts, studio):
+    import accountstats
+    import autopilot
+    import claudeinfo
+    import notify
+    import oturum
+    import update
+    names = {p["id"]: p.get("title") or "" for p in posts}
+    soon = dt.datetime.now() - dt.timedelta(hours=1)
+    plan = []
+    for p in posts:
+        if p.get("status") not in ("planlandi", "paylasiliyor") or not p.get("schedule"):
+            continue
+        at = core.parse_time(p["schedule"])
+        if at < soon:
+            continue
+        yt, tt, cl = p.get("youtube") or {}, p.get("tiktok") or {}, p.get("cloud") or {}
+        ig = (None if not core.ig_on(p) else "cloud" if cl.get("state") in CLOUD_STATES
+              else "published" if cl.get("state") == "published" else "local")
+        plan.append({"pid": p["id"], "title": (p.get("title") or "")[:120], "at": to_utc(at), "ig": ig,
+                     "yt": (yt.get("state") or "queued") if yt.get("enabled") else None,
+                     "tt": (tt.get("state") or "queued") if tt.get("enabled") else None})
+    plan.sort(key=lambda x: x["at"])
+    making = [p for p in posts if p.get("status") in MAKING]
+    making.sort(key=lambda p: p.get("updated") or "", reverse=True)
+    pipeline = {"counts": dict(collections.Counter(p.get("status") for p in posts)),
+                "items": [{"pid": p["id"], "title": (p.get("title") or "")[:120], "status": p.get("status"),
+                           "stage": (p.get("stage") or "")[:120], "agent": p.get("agent"), "ready": bool(core.ready(p)),
+                           "error": (p.get("error") or "")[:160] or None, "updated": _utc_or_none(p.get("updated"))}
+                          for p in making[:20]]}
+    agents = [{"name": a.get("name"), "live": a.get("live") or a.get("state"), "post": names.get(a.get("post")) if a.get("post") else None,
+               "text": (a.get("text") or "")[:120], "account": a.get("account"), "seen": _utc_or_none(a.get("seen"))}
+              for a in core.list_agents()[:12]]
+    cl = claudeinfo.brief() or {}
+    claude = {"percent": cl.get("percent"), "resets": cl.get("resetsAt"), "status": cl.get("status"),
+              "updated": _utc_or_none(cl.get("updated"))}
+    auto = []
+    for c in autopilot.summaries(posts):
+        pr, nx = c.get("progress") or {}, c.get("next")
+        auto.append({"name": (c.get("name") or "")[:80], "status": c.get("status"), "stage": (c.get("stage") or "")[:120],
+                     "videos": pr.get("videos"), "producing": pr.get("producing"), "scheduled": pr.get("scheduled"),
+                     "published": pr.get("published"), "failed": pr.get("failed"),
+                     "next": {"title": (nx.get("title") or "")[:120], "at": _utc_or_none(nx.get("at"))} if nx else None,
+                     "updated": _utc_or_none(c.get("updated"))})
+    auto.sort(key=lambda a: a["updated"] or "", reverse=True)
+    auto.sort(key=lambda a: a["status"] == "bitti")
+    nl = notify.listing(10)
+    notes = {"unread": nl.get("unread") or 0,
+             "items": [{"at": _utc_or_none(i.get("at")), "kind": i.get("kind"), "title": (i.get("title") or "")[:100],
+                        "text": (i.get("text") or "")[:160]} for i in nl.get("items") or []]}
+    try:
+        u = update.check()
+        studio.update(version=u.get("current"), latest=u.get("latest") if u.get("newer") else None)
+    except Exception:  # noqa: BLE001
+        studio.update(version=update.current())
+    studio["name"] = (oturum.current().get("name") or "")[:60]
+    return {"plan": plan[:40], "pipeline": pipeline, "agents": agents, "limit": claude, "auto": auto[:6], "notes": notes,
+            "stats": accountstats.snapshot(), "conn": _connections(posts)}
+
+
+def _connections(posts):
+    import tiktok
+    import youtube
+    out = {}
+    try:
+        yb = youtube.brief(posts)
+        out["yt"] = "reconnect" if yb.get("needs_reconnect") else "ok" if yb.get("connected") else "off"
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        tb = tiktok.brief(posts)
+        out["tt"] = "ok" if tb.get("logged_in") is True else "login" if tb.get("available") and tb.get("logged_in") is False else "off"
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
+def _snap_fit(body):
+    for key, keep in (("notes", 5), ("plan", 20), ("auto", 3), ("stats", None), ("pipeline", 8), ("local_only", 15)):
+        if len(json.dumps(body, ensure_ascii=False).encode("utf-8")) <= SNAP_BUDGET:
+            break
+        v = body.get(key)
+        if key == "notes" and v:
+            v["items"] = v["items"][:keep]
+        elif key == "pipeline" and v:
+            v["items"] = v["items"][:keep]
+        elif key == "stats" and v:
+            v["recent"] = v.get("recent", [])[:4]
+            v["hist"] = v.get("hist", [])[-14:]
+        elif isinstance(v, list):
+            body[key] = v[:keep]
+    return body
+
+
+def _collect_stats():
+    import accountstats
+    accountstats.collect()
 
 
 def _snap_sig(body):
@@ -1533,6 +1649,7 @@ def maybe_snapshot(c=None, force=False):
     if not configured(c) or not panel_conf(c) or not _snap_lock.acquire(blocking=False):
         return False
     try:
+        _spawn(_collect_stats)
         with _lock:
             s = _load()
             if time.time() - (s.get("snap_try") or 0) < SNAP_MIN:
