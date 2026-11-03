@@ -8,7 +8,7 @@
   "private": true,
   "main": "main.js",
   "scripts": {
-    "dist": "electron-builder --win nsis"
+    "dist": "electron-builder --win nsis --publish never"
   },
   "devDependencies": {
     "electron": "44.7.0",
@@ -20,14 +20,28 @@
     "copyright": "Copyright © BerTaDEV",
     "electronVersion": "44.7.0",
     "asar": true,
-    "files": ["main.js", "package.json"],
-    "extraResources": [
-      { "from": "../studio", "to": "studio" },
-      { "from": "../python", "to": "python" }
+    "files": [
+      "main.js",
+      "package.json"
     ],
-    "directories": { "output": "../dist", "buildResources": "build" },
+    "extraResources": [
+      {
+        "from": "../studio",
+        "to": "studio"
+      },
+      {
+        "from": "../python",
+        "to": "python"
+      }
+    ],
+    "directories": {
+      "output": "../dist",
+      "buildResources": "build"
+    },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "build/icon.ico",
       "executableName": "SosyalStudyo",
       "legalTrademarks": "BerTaDEV"
@@ -44,6 +58,17 @@
       "uninstallerIcon": "build/icon.ico",
       "uninstallDisplayName": "Sosyal Stüdyo",
       "artifactName": "SosyalStudyo-Kurulum.exe"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "BerTaDev",
+        "repo": "SosyalStudyo",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "6.8.11"
   }
 }

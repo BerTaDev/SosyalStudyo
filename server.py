@@ -495,6 +495,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         if research.handle_get(self, path):
             return
+        if path == "/api/busy":
+            return self.send_json({"busy": busy_reason()})
+        if path == "/api/update/ready":
+            return self.send_json({"busy": busy_everywhere()})
         if update.handle_get(self, path, qs) or setupguide.handle_get(self, path, qs):
             return
         m = re.fullmatch(r"/uploads/([\w.\-]+)", path)
@@ -1283,6 +1287,23 @@ def busy_reason():
         return "Bu oturumda YouTube yüklemesi sürüyor; bitince tekrar dene"
     if any(g.get("status") == "calisiyor" for g in webagent.list_jobs()):
         return "Bu oturumda araştırma ajanı çalışıyor; bitince ya da iptal edince tekrar dene"
+    return None
+
+
+def busy_everywhere():
+    why = busy_reason()
+    if why or core.OTURUM:
+        return why
+    for e in oturum.entries()[1:]:
+        if not oturum.listening(e["port"]):
+            continue
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{e['port']}/api/busy", timeout=4) as r:
+                why = json.loads(r.read().decode("utf-8")).get("busy")
+        except (OSError, ValueError):
+            continue
+        if why:
+            return f"{e['name']}: {why}"
     return None
 
 

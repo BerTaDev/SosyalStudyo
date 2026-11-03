@@ -7,7 +7,8 @@ const STATE = {
 };
 const REASON = { no_release: "Henüz yayınlanmış bir sürüm bulunamadı.", offline: "Güncelleme bilgisine ulaşılamadı; internet bağlantını kontrol et.", error: "Güncelleme bilgisi şu an alınamadı." };
 
-const U = { X: null, d: null, busy: false, err: null, mode: "full", fitting: false, hideT: null };
+const U = { X: null, d: null, busy: false, err: null, mode: "full", fitting: false, hideT: null, self: null, selfT: null };
+const ACTIVE = ["checking", "downloading", "ready", "installing"];
 
 function rel(iso) {
   if (!iso) return "henüz kontrol edilmedi";
@@ -20,8 +21,22 @@ function rel(iso) {
 
 const st = () => STATE[U.d?.state] || STATE.unknown;
 const v = (x) => (x ? `v${String(x).replace(/^v/i, "")}` : "");
+const shellUpd = () => window.studioShell?.upd;
+const canSelf = () => !!U.self && U.self.phase !== "none" && (U.d?.state === "newer" || ACTIVE.includes(U.self.phase));
+const loading = () => canSelf() && ["checking", "downloading"].includes(U.self.phase);
+
+function selfSummary(d) {
+  const s = U.self;
+  if (s.phase === "checking") return "Güncelleme hazırlanıyor…";
+  if (s.phase === "downloading") return `${v(s.version || d?.latest)} indiriliyor: %${s.percent}`;
+  if (s.phase === "ready") return `${v(s.version)} indirildi. Kurulum için stüdyo kapanıp birkaç saniye içinde yeniden açılacak; verilerin yerinde kalır.`;
+  if (s.phase === "installing") return "Güncelleniyor; stüdyo birazdan yeniden açılacak.";
+  if (s.phase === "error") return `Güncelleme indirilemedi: ${s.error}`;
+  return `${v(d?.latest)} yayınlandı. Güncelle'ye bas; yeni sürüm uygulamanın içinden indirilip kurulur.`;
+}
 
 function summary(d) {
+  if (canSelf()) return selfSummary(d);
   if (!d) return U.err || "Sürüm bilgisi alınıyor…";
   if (d.state === "newer") return `${v(d.latest)} yayınlandı. İndirme sayfasından yeni sürümü indirip kur.`;
   if (d.state === "current") return "En son sürümü kullanıyorsun.";
@@ -32,6 +47,8 @@ function labelFor(mode) {
   const d = U.d;
   if (!d) return mode === "mini" ? "" : "v…";
   if (mode === "mini") return "";
+  if (loading()) return mode === "full" ? `İndiriliyor %${U.self.percent}` : `%${U.self.percent}`;
+  if (canSelf() && U.self.phase === "ready") return mode === "full" ? "Güncellemeye hazır" : v(U.self.version);
   if (d.state === "newer") return mode === "full" ? `Yeni sürüm ${v(d.latest)}` : v(d.latest);
   if (d.state === "current" && mode === "full") return `${v(d.current)} · Güncel`;
   return v(d.current);
@@ -76,13 +93,30 @@ function queueFit() {
   });
 }
 
+function mainBtn(d, sm) {
+  const { ic, esc } = U.X;
+  const z = sm ? 13 : 15;
+  const cls = `btn ${sm ? "sm " : ""}`;
+  if (canSelf()) {
+    const s = U.self;
+    if (loading()) return `<button type="button" class="${cls}primary" disabled>${ic("loader-circle", z, "spin")}İndiriliyor %${s.percent}</button>`;
+    if (s.phase === "ready") return `<button type="button" class="${cls}primary" data-upd="install">${ic("rotate-cw", z)}Yeniden başlat ve güncelle</button>`;
+    if (s.phase === "installing") return `<button type="button" class="${cls}primary" disabled>${ic("loader-circle", z, "spin")}Güncelleniyor</button>`;
+    return `<button type="button" class="${cls}primary" data-upd="self">${ic("download", z)}${s.phase === "error" ? "Tekrar dene" : `${esc(v(d?.latest))} sürümüne güncelle`}</button>`;
+  }
+  const label = d?.state === "newer" ? (sm ? `${esc(v(d.latest))} indir` : `${esc(v(d.latest))} sürümünü indir`) : "İndirme sayfası";
+  return `<button type="button" class="${cls}${d?.state === "newer" ? "primary" : ""}" data-upd="page">${ic("download", z)}${label}</button>`;
+}
+
+const bar = () => (loading() ? `<div class="upd-bar"><i style="width:${U.self.percent}%"></i></div>` : "");
+
 function popHtml() {
   const { ic, esc } = U.X;
   const d = U.d;
   const s = st();
   return `<div class="stt-head"><span class="stt-ic ${s.lv}">${ic(s.icon, 15)}</span><b>Sosyal Stüdyo ${esc(v(d?.current) || "")}</b><span class="sp-lv ${s.lv}">${s.badge}</span></div>
-    <div class="stt-body"><div>${esc(summary(d))}</div><div>Son kontrol: ${esc(rel(d?.checked))}</div></div>
-    <div class="upd-acts"><button type="button" class="btn sm ${d?.state === "newer" ? "primary" : ""}" data-upd="page">${ic("download", 13)}${d?.state === "newer" ? `${esc(v(d.latest))} indir` : "İndirme sayfası"}</button>
+    <div class="stt-body"><div>${esc(summary(d))}</div>${bar()}<div>Son kontrol: ${esc(rel(d?.checked))}</div></div>
+    <div class="upd-acts">${mainBtn(d, true)}
       <button type="button" class="btn sm" data-upd="check" ${U.busy ? "disabled" : ""}>${ic("refresh-cw", 13, U.busy ? "spin" : "")}Şimdi kontrol et</button></div>`;
 }
 
@@ -129,6 +163,8 @@ async function actions(e) {
   const b = e.target.closest("[data-upd]");
   if (!b || b.disabled) return;
   if (b.dataset.upd === "page") return openPage();
+  if (b.dataset.upd === "self") return startSelf();
+  if (b.dataset.upd === "install") return installSelf();
   if (b.dataset.upd === "check") {
     await checkNow();
     const d = U.d;
@@ -168,6 +204,62 @@ async function load(fresh = false) {
 
 const checkNow = () => load(true);
 
+function selfDone() {
+  const s = U.self;
+  if (s.phase === "ready") U.X.toast(`${v(s.version)} indirildi; kurmak için "Yeniden başlat ve güncelle"ye bas`);
+  else if (s.phase === "error") U.X.toast(`Güncelleme indirilemedi: ${s.error}`, true);
+  else if (s.phase === "none") U.X.toast("Bu sürüm uygulamanın içinden kurulamıyor; indirme sayfasından indir", true);
+}
+
+function pollSelf() {
+  clearTimeout(U.selfT);
+  U.selfT = setTimeout(async () => {
+    try {
+      U.self = await shellUpd().state();
+    } catch {
+      return;
+    }
+    redraw();
+    if (["checking", "downloading"].includes(U.self.phase)) pollSelf();
+    else selfDone();
+  }, 700);
+}
+
+async function probeSelf() {
+  try {
+    U.self = await shellUpd().state();
+  } catch {
+    U.self = null;
+    return;
+  }
+  redraw();
+  if (["checking", "downloading"].includes(U.self.phase)) pollSelf();
+}
+
+async function startSelf() {
+  try {
+    U.self = await shellUpd().download();
+  } catch (e) {
+    return U.X.toast(`Güncelleme başlatılamadı: ${e.message}`, true);
+  }
+  redraw();
+  if (["checking", "downloading"].includes(U.self.phase)) pollSelf();
+  else selfDone();
+}
+
+async function installSelf() {
+  let r;
+  try {
+    r = await shellUpd().install();
+  } catch (e) {
+    r = { ok: false, reason: e.message };
+  }
+  if (!r?.ok) return U.X.toast(r?.reason || "Güncelleme kurulamadı", true);
+  U.self = { ...U.self, phase: "installing" };
+  redraw();
+  U.X.toast("Stüdyo güncelleniyor; birkaç saniye içinde yeniden açılacak");
+}
+
 export function initUpdate(X) {
   U.X = X;
   const right = $(".top-right");
@@ -176,6 +268,7 @@ export function initUpdate(X) {
   b.id = "updBtn";
   b.type = "button";
   b.onclick = () => {
+    if (canSelf()) return showPop();
     hidePop(true);
     openPage();
   };
@@ -191,6 +284,7 @@ export function initUpdate(X) {
   const watch = new MutationObserver(queueFit);
   for (const el of [$(".top-stat"), $("#liveBtn"), $(".tabs")]) if (el) watch.observe(el, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["class"] });
   load();
+  probeSelf();
   setInterval(() => load(), POLL_MS);
 }
 
@@ -206,11 +300,12 @@ function settingsBody() {
   const d = U.d;
   const s = st();
   return `<div class="upd-card ${d?.state || "unknown"}"><span class="upd-cic">${ic(s.icon, 20)}</span>
-      <div class="grow"><b>Sosyal Stüdyo ${esc(v(d?.current) || "")}</b><span>${esc(summary(d))}</span></div><span class="sp-lv ${s.lv}">${s.badge}</span></div>
+      <div class="grow"><b>Sosyal Stüdyo ${esc(v(d?.current) || "")}</b><span>${esc(summary(d))}</span>${bar()}</div><span class="sp-lv ${s.lv}">${s.badge}</span></div>
     <div class="row wrap upd-row">
-      <button type="button" class="btn ${d?.state === "newer" ? "primary" : ""}" data-upd="page">${ic("download", 15)}${d?.state === "newer" ? `${esc(v(d.latest))} sürümünü indir` : "İndirme sayfası"}</button>
+      ${mainBtn(d, false)}
       <button type="button" class="btn" data-upd="check" ${U.busy ? "disabled" : ""}>${ic("refresh-cw", 15, U.busy ? "spin" : "")}Şimdi kontrol et</button>
-      ${d?.release ? `<a class="btn ghost" href="${esc(d.release)}" target="_blank" rel="noopener">${ic("file-text", 15)}Sürüm notları</a>` : ""}</div>
+      ${d?.release ? `<a class="btn ghost" href="${esc(d.release)}" target="_blank" rel="noopener">${ic("file-text", 15)}Sürüm notları</a>` : ""}
+      ${canSelf() ? `<button type="button" class="btn ghost" data-upd="page">${ic("external-link", 15)}İndirme sayfası</button>` : ""}</div>
     <div class="sm muted upd-note">Son kontrol: ${esc(rel(d?.checked))}. Stüdyo açıkken yeni sürümü birkaç saatte bir kendiliğinden kontrol eder.</div>`;
 }
 

@@ -15,4 +15,9 @@ contextBridge.exposeInMainWorld("studioShell", {
     onState: (cb) => ipcRenderer.on("bw-state", (_e, s) => cb(s)),
     onCommand: (cb) => ipcRenderer.on("bw-cmd", (_e, c) => cb(c)),
   },
+  upd: {
+    state: () => ipcRenderer.invoke("upd:state"),
+    download: () => ipcRenderer.invoke("upd:download"),
+    install: () => ipcRenderer.invoke("upd:install"),
+  },
 });

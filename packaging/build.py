@@ -167,7 +167,7 @@ def main():
     app = stage_app(out, version)
     env = dict(os.environ, CSC_IDENTITY_AUTO_DISCOVERY="false")
     env.setdefault("ELECTRON_BUILDER_CACHE", str(out / "cache" / "builder"))
-    run([tool("node"), app / "node_modules" / "electron-builder" / "cli.js", "--win", "dir" if args.dir else "nsis", "--x64"], cwd=app, env=env)
+    run([tool("node"), app / "node_modules" / "electron-builder" / "cli.js", "--win", "dir" if args.dir else "nsis", "--x64", "--publish", "never"], cwd=app, env=env)
     exe = out / "dist" / "SosyalStudyo-Kurulum.exe"
     if not args.dir and exe.exists():
         log(f"installer: {exe} ({exe.stat().st_size / 1e6:.1f} MB)")
