@@ -548,15 +548,16 @@ function createWindow() {
   win.on("moved", keep);
   win.on("maximize", keep);
   win.on("unmaximize", keep);
+  const openOutside = (url) => shell.openExternal(url).then(() => win && !win.isDestroyed() && win.minimize()).catch(() => {});
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (isLocal(url)) return { action: "allow", overrideBrowserWindowOptions: { autoHideMenuBar: true, backgroundColor: "#0e1116", width: 1200, height: 860 } };
-    shell.openExternal(url);
+    openOutside(url);
     return { action: "deny" };
   });
   win.webContents.on("will-navigate", (e, url) => {
     if (!isLocal(url)) {
       e.preventDefault();
-      shell.openExternal(url);
+      openOutside(url);
     }
   });
   win.webContents.on("did-navigate", (_e, url) => {
