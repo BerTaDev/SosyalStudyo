@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Önizleme</title>
+<style>
+  :root { --bg: #111317; --panel: #1a1d22; --line: #2c3037; --text: #e8eaed; --muted: #9198a3; --accent: #ff6a3d; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.4 "Segoe UI", sans-serif; }
+  body.export { background: transparent; overflow: hidden; }
+  body.export #ui { display: none; }
+  #app { display: flex; height: 100%; gap: 16px; padding: 16px; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+  #stage canvas { height: 100%; max-height: calc(100vh - 32px); aspect-ratio: 9 / 16; width: auto; border-radius: 10px; background: #000; }
+  body.export #app { padding: 0; }
+  body.export #stage canvas { border-radius: 0; background: transparent; height: auto; max-height: none; width: 1080px; }
+  #ui { width: 320px; flex: none; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; overflow: auto; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin-bottom: 16px; }
+  .row { display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+  button { background: #262a31; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; min-width: 92px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .time { font-family: Consolas, monospace; }
+  .scenes { display: grid; gap: 6px; margin-top: 8px; }
+  .scene { text-align: left; display: flex; justify-content: space-between; gap: 8px; }
+  .scene span { color: var(--muted); font-family: Consolas, monospace; font-size: 12px; }
+  .scene.on { border-color: var(--accent); }
+  label.opt { display: flex; gap: 8px; align-items: center; margin: 6px 0; cursor: pointer; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"><canvas id="view"></canvas></div>
+  <aside id="ui">
+    <h1 id="title"></h1>
+    <div class="sub">1080×1920 · <span id="dur"></span></div>
+    <div class="row"><button class="primary" id="play">Oynat</button><button id="prev">◀ kare</button><button id="next">kare ▶</button></div>
+    <input type="range" id="seek" min="0" value="0" step="1">
+    <div class="row time" id="clock">0.00 sn · kare 0</div>
+    <hr>
+    <label class="opt"><input type="checkbox" id="optSub" checked> Altyazı</label>
+    <label class="opt"><input type="checkbox" id="optBlur"> Hareket bulanıklığı</label>
+    <label class="opt"><input type="checkbox" id="optFull"> Tam çözünürlük</label>
+    <label class="opt"><input type="checkbox" id="optAudio" checked> Ses</label>
+    <hr>
+    <div><b>Sahneler</b></div>
+    <div class="scenes" id="scenes"></div>
+  </aside>
+</div>
+<script type="module" src="../_engine/core/preview.js"></script>
+</body>
+</html>

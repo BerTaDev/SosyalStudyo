@@ -1,0 +1,6 @@
+pip==26.3
+numpy==2.5.4
+scipy==1.18.1
+soundfile==0.14.0
+pillow==13.0.0
+tzdata==2026.6

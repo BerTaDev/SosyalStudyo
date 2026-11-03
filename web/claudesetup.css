@@ -1,0 +1,26 @@
+.btn.cs-btn > .icw { color: var(--accent2); }
+.btn.cs-btn.ghost > .icw { color: inherit; }
+#csModal { z-index: 75; }
+.dialog.cs-dlg { width: 600px; }
+.cs-dlg h2 small { display: block; font-size: 12.5px; font-weight: 500; color: var(--muted); margin-top: 1px; }
+.cs-dlg h2 > .icw { width: 34px; height: 34px; border-radius: 10px; background: rgba(var(--accent-rgb), .14); color: var(--accent2); }
+.cs-lead { margin: 0 0 12px; font-size: 13.5px; line-height: 1.5; color: var(--text); }
+.cs-safe { display: flex; gap: 9px; align-items: flex-start; padding: 9px 11px; border-radius: 10px; font-size: 12.5px; line-height: 1.45; color: #ffe3a3; background: rgba(242, 193, 78, .1); border: 1px solid rgba(242, 193, 78, .3); }
+.cs-safe > .icw { color: #ffd98a; margin-top: 1px; }
+.cs-safe b { color: #fff0c8; }
+.dialog .cs-prompt { width: 100%; min-height: 150px; max-height: 260px; resize: vertical; font: 12.5px/1.5 Consolas, "Cascadia Mono", monospace; color: var(--text); background: var(--bg); border-color: var(--line); white-space: pre-wrap; }
+.cs-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.cs-path .btn.cs-done { color: #9ff0bf; }
+.cs-code { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; padding: 11px 12px; border-radius: 10px; background: var(--bg3); border: 1px solid var(--line); font-size: 12.5px; line-height: 1.5; }
+.cs-code > .icw { color: var(--muted); margin-top: 2px; }
+.cs-code b { display: block; font-size: 13px; margin-bottom: 2px; }
+.cs-code span { color: var(--muted); }
+.cs-code span b { display: inline; font-size: inherit; color: var(--text); margin: 0; }
+.cs-path { display: flex; align-items: center; gap: 4px; margin-top: 7px; min-width: 0; }
+.cs-path code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 8px; border-radius: 6px; background: var(--bg); border: 1px solid var(--line); font: 12px Consolas, monospace; color: var(--text); }
+.cs-path .btn { padding: 4px 6px; }
+.cs-wait { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 40px 10px; color: var(--muted); }
+.ela-addnote { display: flex; align-items: center; gap: 10px; }
+.cps2-claude { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--line); }
+.cpnoag { gap: 8px; }
+@media (max-width: 640px) { .cs-acts .grow { display: none; } }

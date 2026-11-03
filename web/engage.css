@@ -1,0 +1,6 @@
+.eng .tka-tot { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.eng.ig { border-color: rgba(225, 48, 108, .28); background: linear-gradient(100deg, rgba(245, 133, 41, .08), rgba(221, 42, 123, .06) 55%, rgba(129, 52, 175, .05)), var(--bg2); }
+.eng.ig .tka-toth > .icw, .eng.ig .tka-totn > .icw { color: #ff7ab3; }
+.eng.yt { border-color: rgba(255, 60, 60, .26); background: linear-gradient(100deg, rgba(255, 0, 0, .08), rgba(255, 0, 0, .02) 70%), var(--bg2); }
+.eng.yt .tka-toth > .icw, .eng.yt .tka-totn > .icw { color: #ff6b6b; }
+.acc > .eng { margin: 14px 0 6px; }

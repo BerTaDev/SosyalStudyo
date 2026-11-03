@@ -1,0 +1,49 @@
+{
+  "name": "sosyal-studyo",
+  "productName": "Sosyal Stüdyo",
+  "version": "1.0.0",
+  "description": "Sosyal Stüdyo",
+  "author": "BerTaDEV",
+  "license": "MIT",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.bertadev.sosyalstudyo",
+    "productName": "Sosyal Stüdyo",
+    "copyright": "Copyright © BerTaDEV",
+    "electronVersion": "44.7.0",
+    "asar": true,
+    "files": ["main.js", "package.json"],
+    "extraResources": [
+      { "from": "../studio", "to": "studio" },
+      { "from": "../python", "to": "python" }
+    ],
+    "directories": { "output": "../dist", "buildResources": "build" },
+    "win": {
+      "target": ["nsis"],
+      "icon": "build/icon.ico",
+      "executableName": "SosyalStudyo",
+      "legalTrademarks": "BerTaDEV"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Sosyal Stüdyo",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "uninstallDisplayName": "Sosyal Stüdyo",
+      "artifactName": "SosyalStudyo-Kurulum.exe"
+    }
+  }
+}

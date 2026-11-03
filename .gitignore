@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.new
+*.lf
+local.json
+node_modules/
+dist/
+build-cache/
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

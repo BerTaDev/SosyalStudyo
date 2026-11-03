@@ -1,0 +1,11 @@
+{
+  "name": "Sohbet",
+  "description": "Anlatım bir telefon sohbeti gibi akar: \"yazıyor…\" noktalarının ardından mesaj balonları yaylanarak gelir, eskiler yukarı kayar, okundu tikleri maviye döner, önemli mesajlarda tepki emojileri zıplar.",
+  "best_for": "soru-cevap, diyalog, takipçi sorusu, samimi ipucu, kısa hikâye",
+  "tags": [
+    "sohbet",
+    "mesaj",
+    "diyalog"
+  ],
+  "order": 10
+}

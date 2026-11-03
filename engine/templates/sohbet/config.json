@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "title": "Başlık"
+  },
+  "video": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "duration": 24,
+    "seed": 7,
+    "background": "#0A0D1A"
+  },
+  "voice": {
+    "dir": "voice/tts",
+    "gain": 0,
+    "lines": [
+      { "id": "l01", "anchor": 0.3, "text": "Sana küçük bir sır vereyim mi?" },
+      { "id": "l02", "gap": 0.45, "text": "Herkes aynı şeyi soruyor: videolarım neden izlenmiyor?" },
+      { "id": "l03", "gap": 0.45, "text": "Çünkü ilk iki saniye her şeyi belirler." },
+      { "id": "l04", "gap": 0.5, "text": "Devamı için takip etmeyi unutma." }
+    ]
+  },
+  "beats": {
+    "s2": "@l02-0.15",
+    "s3": "@l03-0.15",
+    "outro": "@l04-0.15"
+  },
+  "scenes": [
+    { "id": "s1", "name": "Kanca", "start": 0, "end": "s2" },
+    { "id": "s2", "name": "Fikir", "start": "s2", "end": "s3" },
+    { "id": "s3", "name": "Sonuç", "start": "s3", "end": "outro" },
+    { "id": "s4", "name": "Kapanış", "start": "outro", "end": 24 }
+  ],
+  "text": {
+    "cards": ["Sana bir sır vereyim mi? 👀", "Söyle, videolarım neden izlenmiyor?", "İlk 2 saniye her şeyi belirler"],
+    "handle": "@kullanici",
+    "follow": "Takip et"
+  },
+  "colors": {
+    "bg": "#0A0D1A",
+    "bg2": "#2A1A5E",
+    "accent": "#7B5CFF",
+    "accent2": "#3DB8FF",
+    "text": "#FFFFFF",
+    "muted": "#98A3C2"
+  },
+  "fonts": ["Segoe UI", "Segoe UI Emoji"],
+  "subtitle": {
+    "font": "Segoe UI",
+    "weight": 700,
+    "size": 60,
+    "lineHeight": 1.18,
+    "y": 1380,
+    "maxChars": 24,
+    "maxRows": 2,
+    "fill": "#FFFFFF",
+    "active": "#3DB8FF",
+    "stroke": "#0A0D1A",
+    "strokeWidth": 10,
+    "hold": 0.25,
+    "box": null
+  },
+  "music": {
+    "duckDb": 9,
+    "duckAttack": 0.06,
+    "duckRelease": 0.4,
+    "tracks": []
+  },
+  "sfx": [],
+  "mix": {
+    "targetLufs": -14,
+    "truePeak": -1.0
+  }
+}

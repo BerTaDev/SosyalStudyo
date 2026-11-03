@@ -1,0 +1,11 @@
+{
+  "name": "Son Dakika",
+  "description": "Haber bülteni görünümü: SON DAKİKA bandı ekranı kaplayıp etikete küçülür, manşet paneli kayarak açılır, altta kayan yazı ve saat, sahneler arası geçiş bandı.",
+  "best_for": "duyuru, gündem, yenilik, kampanya, dikkat çekici haber dili",
+  "tags": [
+    "haber",
+    "son dakika",
+    "dinamik"
+  ],
+  "order": 8
+}

@@ -1,0 +1,11 @@
+{
+  "name": "Karşılaştırma",
+  "description": "Ekran iki zıt renge bölünür; iki seçenek VS rozetiyle karşı karşıya gelir, hüküm satırları tik ya da çarpıyla vurgulanır.",
+  "best_for": "A mı B mi, önce/sonra, doğru/yanlış, ürün karşılaştırma",
+  "tags": [
+    "karşılaştırma",
+    "vs",
+    "bölünmüş ekran"
+  ],
+  "order": 3
+}

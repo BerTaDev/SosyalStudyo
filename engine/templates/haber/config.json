@@ -1,0 +1,120 @@
+{
+  "meta": {
+    "title": "Başlık"
+  },
+  "video": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "duration": 24,
+    "seed": 7,
+    "background": "#071330"
+  },
+  "voice": {
+    "dir": "voice/tts",
+    "gain": 0,
+    "lines": [
+      {
+        "id": "l01",
+        "anchor": 0.3,
+        "text": "Son dakika: bir videonun kaderi ilk iki saniyede belirleniyor."
+      },
+      {
+        "id": "l02",
+        "gap": 0.45,
+        "text": "İzleyici, kaydırıp kaydırmayacağına ilk sahnede karar veriyor."
+      },
+      {
+        "id": "l03",
+        "gap": 0.45,
+        "text": "Önerimiz net: en güçlü cümleni en başa koy."
+      },
+      {
+        "id": "l04",
+        "gap": 0.5,
+        "text": "Gelişmeler için takipte kalın."
+      }
+    ]
+  },
+  "beats": {
+    "s2": "@l02-0.15",
+    "s3": "@l03-0.15",
+    "outro": "@l04-0.15"
+  },
+  "scenes": [
+    {
+      "id": "s1",
+      "name": "Kanca",
+      "start": 0,
+      "end": "s2"
+    },
+    {
+      "id": "s2",
+      "name": "Fikir",
+      "start": "s2",
+      "end": "s3"
+    },
+    {
+      "id": "s3",
+      "name": "Sonuç",
+      "start": "s3",
+      "end": "outro"
+    },
+    {
+      "id": "s4",
+      "name": "Kapanış",
+      "start": "outro",
+      "end": 24
+    }
+  ],
+  "text": {
+    "cards": [
+      "İlk 2 saniye her şeyi belirliyor",
+      "İzleyici ilk sahnede karar veriyor",
+      "ÖNERİ: En güçlü cümleni başa koy"
+    ],
+    "handle": "@kullanici",
+    "follow": "Takipte kal"
+  },
+  "colors": {
+    "bg": "#071330",
+    "bg2": "#12397A",
+    "accent": "#E31B3B",
+    "accent2": "#FFC21A",
+    "text": "#FFFFFF",
+    "muted": "#8FA6D6"
+  },
+  "fonts": [
+    "Bahnschrift"
+  ],
+  "subtitle": {
+    "font": "Segoe UI",
+    "weight": 700,
+    "size": 60,
+    "lineHeight": 1.18,
+    "y": 1380,
+    "maxChars": 24,
+    "maxRows": 2,
+    "fill": "#FFFFFF",
+    "active": "#FFC21A",
+    "stroke": "#071330",
+    "strokeWidth": 8,
+    "hold": 0.25,
+    "box": {
+      "color": "rgba(7,19,48,0.72)",
+      "pad": 22,
+      "radius": 10
+    }
+  },
+  "music": {
+    "duckDb": 9,
+    "duckAttack": 0.06,
+    "duckRelease": 0.4,
+    "tracks": []
+  },
+  "sfx": [],
+  "mix": {
+    "targetLufs": -14,
+    "truePeak": -1.0
+  }
+}

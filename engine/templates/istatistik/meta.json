@@ -1,0 +1,11 @@
+{
+  "name": "Sayılarla",
+  "description": "Koyu veri ekranında dev sayılar sıfırdan sayarak büyür; yüzde, sütun ve çizgi grafikleri sahneyle birlikte canlanır.",
+  "best_for": "istatistik, araştırma sonucu, önce/sonra rakamları, veri odaklı ipucu",
+  "tags": [
+    "veri",
+    "sayılar",
+    "grafik"
+  ],
+  "order": 5
+}

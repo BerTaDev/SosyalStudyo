@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "title": "Başlık"
+  },
+  "video": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "duration": 24,
+    "seed": 7,
+    "background": "#07080A"
+  },
+  "voice": {
+    "dir": "voice/tts",
+    "gain": 0,
+    "lines": [
+      { "id": "l01", "anchor": 0.3, "text": "Bir gün, her şey değişecek." },
+      { "id": "l02", "gap": 0.45, "text": "Kimse buna hazır değildi." },
+      { "id": "l03", "gap": 0.45, "text": "Ama hikâye daha yeni başlıyor." },
+      { "id": "l04", "gap": 0.5, "text": "Devamı için takip etmeyi unutma." }
+    ]
+  },
+  "beats": {
+    "s2": "@l02-0.15",
+    "s3": "@l03-0.15",
+    "outro": "@l04-0.15"
+  },
+  "scenes": [
+    { "id": "s1", "name": "Kanca", "start": 0, "end": "s2" },
+    { "id": "s2", "name": "Fikir", "start": "s2", "end": "s3" },
+    { "id": "s3", "name": "Sonuç", "start": "s3", "end": "outro" },
+    { "id": "s4", "name": "Kapanış", "start": "outro", "end": 24 }
+  ],
+  "text": {
+    "cards": ["Bir gün…", "Kimse hazır değildi", "Hikâye yeni başlıyor"],
+    "handle": "@kullanici",
+    "follow": "Takip et"
+  },
+  "colors": {
+    "bg": "#07080A",
+    "bg2": "#1C1611",
+    "accent": "#F0B25C",
+    "accent2": "#4AA8FF",
+    "text": "#F5F0E6",
+    "muted": "#8F877B"
+  },
+  "fonts": ["Palatino Linotype", "Segoe UI"],
+  "subtitle": {
+    "font": "Segoe UI",
+    "weight": 600,
+    "size": 58,
+    "lineHeight": 1.18,
+    "y": 1380,
+    "maxChars": 24,
+    "maxRows": 2,
+    "fill": "#F5F0E6",
+    "active": "#F0B25C",
+    "stroke": "#050607",
+    "strokeWidth": 10,
+    "hold": 0.25,
+    "box": null
+  },
+  "music": {
+    "duckDb": 9,
+    "duckAttack": 0.06,
+    "duckRelease": 0.4,
+    "tracks": []
+  },
+  "sfx": [],
+  "mix": {
+    "targetLufs": -14,
+    "truePeak": -1.0
+  }
+}

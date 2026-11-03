@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sosyal Stüdyo</title>
+<link rel="icon" href="/web/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/web/icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/web/apple-touch-icon.png">
+<link rel="manifest" href="/web/manifest.webmanifest">
+<meta name="theme-color" content="#141519">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sosyal Stüdyo">
+<link rel="stylesheet" href="/web/style.css">
+<link rel="stylesheet" href="/web/views.css">
+<link rel="stylesheet" href="/web/ideas.css">
+<link rel="stylesheet" href="/web/autopilot.css">
+<link rel="stylesheet" href="/web/planner.css">
+<link rel="stylesheet" href="/web/account.css">
+<link rel="stylesheet" href="/web/tplstudio.css">
+<link rel="stylesheet" href="/web/cloudview.css">
+<link rel="stylesheet" href="/web/youtube.css">
+<link rel="stylesheet" href="/web/targets.css">
+<link rel="stylesheet" href="/web/ytaccount.css">
+<link rel="stylesheet" href="/web/ttaccount.css">
+<link rel="stylesheet" href="/web/engage.css">
+<link rel="stylesheet" href="/web/tiktok.css">
+<link rel="stylesheet" href="/web/browser.css">
+<link rel="stylesheet" href="/web/theme.css">
+<link rel="stylesheet" href="/web/oturum.css">
+<link rel="stylesheet" href="/web/update.css">
+<link rel="stylesheet" href="/web/claudesetup.css">
+<link rel="stylesheet" href="/web/components.css">
+<script>try{var t=JSON.parse(localStorage.getItem("sosyal-theme")||"{}");var h=document.documentElement;h.dataset.theme=t.theme||"gunbatimi";if(h.dataset.theme!=="klasik")h.classList.add("fx");if(t.motion===false)h.classList.add("still")}catch(e){document.documentElement.dataset.theme="gunbatimi";document.documentElement.classList.add("fx")}</script>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><img class="logo-img" src="/web/icon.svg" alt="" width="30" height="30"><button id="otBtn" class="ot-btn" type="button"><span class="ot-name">Sosyal Stüdyo</span></button></div>
+  <nav class="tabs">
+    <button data-tab="posts" title="İçerikler" class="active"><span data-ic="layout-grid"></span>İçerikler</button>
+    <button data-tab="create" title="Oluştur"><span data-ic="sparkles"></span>Oluştur</button>
+    <button data-tab="ideas" title="Fikirler"><span data-ic="lightbulb"></span>Fikirler</button>
+    <button data-tab="browser" title="Tarayıcı"><span data-ic="globe"></span>Tarayıcı</button>
+    <button data-tab="auto" title="Otopilot"><span data-ic="rocket"></span>Otopilot<span class="pill hidden" id="autoPill"></span></button>
+    <button data-tab="account" title="Hesaplarım"><span data-ic="users"></span>Hesaplarım</button>
+    <button data-tab="calendar" title="Planlama"><span data-ic="calendar-range"></span>Planlama<span class="pill hidden" id="planPill"></span></button>
+    <button data-tab="ai" title="Yapay Zeka"><span data-ic="bot"></span>Yapay Zeka<span class="pill hidden" id="aiPill"></span></button>
+  </nav>
+  <div class="top-right">
+    <button id="liveBtn" class="live-btn" type="button"></button>
+    <div class="top-stat">
+      <button id="cloudChip" class="chip cloud-chip" title="Bulut yayın"></button>
+      <button id="claudeChip" class="chip claude-chip" title="Claude kullanımı ve ajan modeli"></button>
+      <button id="credits" class="chip"></button>
+      <button id="igchip" class="chip"></button>
+      <button id="ytChip" class="chip yt-chip hidden" title="YouTube"></button>
+      <button id="ttChip" class="chip tk-chip hidden" title="TikTok"></button>
+    </div>
+    <div class="snd" id="snd"></div>
+    <button class="btn icon bell" id="bellBtn" title="Bildirimler"><span data-ic="bell"></span></button>
+    <button class="btn icon" id="settingsBtn" title="Ayarlar"><span data-ic="settings"></span></button>
+  </div>
+</header>
+<main id="main">
+  <section id="postsView" class="view">
+    <aside class="list">
+      <div class="row"><button class="btn primary grow" id="newBtn"><span data-ic="plus"></span>Yeni içerik</button><button class="btn grow" id="ideaBtn"><span data-ic="lightbulb"></span>İçerik fikri bul</button><button class="btn icon" id="upBtn" title="Hazır fotoğraf ya da video paylaş (fotoğraf, kaydırmalı, Reels, hikâye)"><span data-ic="upload"></span></button></div>
+      <div class="filters" id="filters"></div>
+      <div id="postList" class="cards"></div>
+      <button class="trash-link" id="trashBtn"></button>
+    </aside>
+    <div class="detail" id="detail"></div>
+  </section>
+  <section id="createView" class="view hidden"></section>
+  <section id="ideasView" class="view hidden"></section>
+  <section id="browserView" class="view hidden"></section>
+  <section id="autoView" class="view hidden"></section>
+  <section id="accountView" class="view hidden"></section>
+  <section id="calendarView" class="view hidden"></section>
+  <section id="aiView" class="view hidden"></section>
+</main>
+<div id="modal" class="modal hidden"></div>
+<div id="toast" class="toast hidden"></div>
+<script type="module" src="/web/app.js"></script>
+</body>
+</html>

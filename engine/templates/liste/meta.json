@@ -1,0 +1,11 @@
+{
+  "name": "Numaralı Liste",
+  "description": "Dev numaralar yuvarlanarak değişir, madde yazısı altından kayarak gelir, üstteki ilerleme çubuğu hangi maddede olduğunu gösterir.",
+  "best_for": "3 hata, 5 ipucu, adım adım rehber, sıralama",
+  "tags": [
+    "liste",
+    "numaralı",
+    "koyu"
+  ],
+  "order": 2
+}
