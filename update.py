@@ -8,7 +8,7 @@ import urllib.request
 import core
 
 API = "https://api.github.com/repos/BerTaDev/SosyalStudyo/releases/latest"
-PAGE = "https://bertadev.github.io/SosyalStudyo/#indir"
+PAGE = "https://www.bertadev.com/sosyal-studyo#indir"
 TTL = 6 * 3600
 RETRY_TTL = 30 * 60
 FRESH_GAP = 10

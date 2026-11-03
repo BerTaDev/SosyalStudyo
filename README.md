@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://bertadev.github.io/SosyalStudyo/"><b>Web sitesi</b></a> ·
+  <a href="https://www.bertadev.com/sosyal-studyo"><b>Web sitesi</b></a> ·
   <a href="https://github.com/BerTaDev/SosyalStudyo/releases/latest/download/SosyalStudyo-Kurulum.exe"><b>İndir (Windows)</b></a> ·
   <a href="https://github.com/BerTaDev/SosyalStudyo/releases">Sürümler</a> ·
   <a href="#kurulum-rehberleri">Kurulum rehberleri</a>
@@ -42,13 +42,13 @@ Sosyal Stüdyo, kısa video üretimini ve paylaşımını tek pencerede toplayan
 | ![Yapay Zeka](docs/img/yapay-zeka.webp) | ![Oturumlar](docs/img/oturumlar.webp) |
 | **Yapay Zeka:** ajanlar ve canlı akış | **Oturumlar:** ayrı stüdyolar arasında geçiş |
 
-Daha fazlası [web sitesinde](https://bertadev.github.io/SosyalStudyo/#ekranlar).
+Daha fazlası [web sitesinde](https://www.bertadev.com/sosyal-studyo#ekranlar).
 
 ## İndir
 
 - **Kurulum dosyası:** [SosyalStudyo-Kurulum.exe](https://github.com/BerTaDev/SosyalStudyo/releases/latest/download/SosyalStudyo-Kurulum.exe) (her zaman son sürüm)
 - **Tüm sürümler:** [github.com/BerTaDev/SosyalStudyo/releases](https://github.com/BerTaDev/SosyalStudyo/releases)
-- **Web sitesi:** [bertadev.github.io/SosyalStudyo](https://bertadev.github.io/SosyalStudyo/)
+- **Web sitesi:** [bertadev.com/sosyal-studyo](https://www.bertadev.com/sosyal-studyo)
 
 Kurulum dosyası dijital olarak imzalı değildir. Windows SmartScreen uyarı gösterirse **Ek bilgi** ve ardından **Yine de çalıştır**'a bas.
 

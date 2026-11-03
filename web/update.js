@@ -122,7 +122,7 @@ function hidePop(now) {
 }
 
 function openPage() {
-  window.open(U.d?.page || "https://bertadev.github.io/SosyalStudyo/#indir", "_blank", "noopener");
+  window.open(U.d?.page || "https://www.bertadev.com/sosyal-studyo#indir", "_blank", "noopener");
 }
 
 async function actions(e) {
